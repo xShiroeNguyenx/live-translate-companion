@@ -22,6 +22,8 @@ export function App(): React.JSX.Element {
     outputDevices,
     sinkState,
     windowsOutputs,
+    appVersion,
+    update,
     init,
     patchSettings,
     setHasKey,
@@ -125,6 +127,20 @@ export function App(): React.JSX.Element {
         <div className="alert warn">
           ⚠ Không route được giọng dịch tới thiết bị đã chọn ({sinkError}) — tạm phát ra thiết bị
           mặc định. Hãy chọn lại thiết bị trong danh sách.
+        </div>
+      )}
+      {update.state === 'downloaded' && (
+        <div className="alert info update-banner">
+          <span>✅ Đã tải bản mới {update.version}. Khởi động lại để cài.</span>
+          <button className="btn-start" onClick={() => void api.installUpdate()}>
+            Cài &amp; khởi động lại
+          </button>
+        </div>
+      )}
+      {(update.state === 'available' || update.state === 'downloading') && (
+        <div className="alert info">
+          ⬇ Đang tải bản mới {update.version}…
+          {update.percent !== undefined ? ` ${update.percent}%` : ''}
         </div>
       )}
       {feedbackRisk && (
@@ -337,6 +353,21 @@ export function App(): React.JSX.Element {
           </button>
         </div>
       </section>
+
+      <footer className="app-footer">
+        <span>Phiên bản {appVersion || '—'}</span>
+        <button
+          className="link-btn"
+          disabled={update.state === 'checking' || update.state === 'downloading'}
+          onClick={() => void api.checkForUpdate()}
+        >
+          {update.state === 'checking'
+            ? 'Đang kiểm tra…'
+            : update.state === 'none'
+              ? 'Đã là bản mới nhất ✓'
+              : 'Kiểm tra cập nhật'}
+        </button>
+      </footer>
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { app, globalShortcut, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { OUTGOING_PTT_SHORTCUT, OVERLAY_TOGGLE_SHORTCUT } from '../shared/constants'
 import { IPC } from '../shared/ipc-contract'
-import type { AppSettings } from '../shared/types'
+import type { AppSettings, UpdateStatus } from '../shared/types'
 import { DebugRecorder } from './debug-recorder'
 import { SdkLiveClient } from './gemini/client'
 import { RawWsLiveClient } from './gemini/raw-ws-client'
@@ -11,6 +11,7 @@ import { registerIpc } from './ipc'
 import { getApiKey } from './secrets'
 import { SettingsStore } from './settings'
 import { SubtitleStore } from './subtitles/store'
+import { initUpdater } from './updater'
 import {
   createControlWindow,
   createEngineWindow,
@@ -167,12 +168,25 @@ if (gotLock) {
     })
     applyOverlaySettings(settings.get())
 
+    // lưu trạng thái cập nhật gần nhất để gửi lại khi control window load xong / mở lại
+    let lastUpdateStatus: UpdateStatus = { state: 'idle' }
+    const updater = initUpdater((status) => {
+      lastUpdateStatus = status
+      sendToControl(IPC.evUpdateStatus, status)
+    })
+    control.webContents.on('did-finish-load', () => {
+      sendToControl(IPC.evUpdateStatus, lastUpdateStatus)
+    })
+    // tự kiểm tra cập nhật sau khi app ổn định (no-op khi chạy dev chưa đóng gói)
+    setTimeout(() => updater.check(), 4000)
+
     registerIpc({
       settings,
       store,
       sessions,
       outgoing,
       debug,
+      updater,
       controlWindow: control,
       engineWindow: engine
     })

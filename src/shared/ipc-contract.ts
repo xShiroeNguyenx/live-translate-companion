@@ -9,6 +9,7 @@ import type {
   PlaybackSinkState,
   SessionStateInfo,
   SubtitleUpdate,
+  UpdateStatus,
   WindowsAudioDevice
 } from './types'
 
@@ -30,6 +31,9 @@ export const IPC = {
   outgoingStart: 'outgoing:start',
   outgoingStop: 'outgoing:stop',
   outgoingPtt: 'outgoing:ptt',
+  appGetVersion: 'app:getVersion',
+  updateCheck: 'update:check',
+  updateInstall: 'update:install',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -49,6 +53,7 @@ export const IPC = {
   evMicPlaybackChunk: 'mic:playbackChunk',
   evMicPlaybackFlush: 'mic:playbackFlush',
   evOutgoingConfig: 'outgoing:config',
+  evUpdateStatus: 'update:status',
 
   audioChunk: 'audio:chunk',
   captureError: 'capture:error',
@@ -78,6 +83,9 @@ export interface ControlApi {
   startOutgoing(): Promise<{ ok: boolean; error?: string }>
   stopOutgoing(): Promise<void>
   setPushToTalk(active: boolean): Promise<void>
+  getAppVersion(): Promise<string>
+  checkForUpdate(): Promise<void>
+  installUpdate(): Promise<void>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void
@@ -89,6 +97,7 @@ export interface ControlApi {
   onOutgoingMetrics(cb: (m: Metrics) => void): () => void
   onOutgoingSubtitle(cb: (u: SubtitleUpdate) => void): () => void
   onOutgoingSinkState(cb: (s: PlaybackSinkState) => void): () => void
+  onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
 }
 
 export interface OverlayApi {

@@ -8,7 +8,8 @@ import type {
   Metrics,
   PlaybackSinkState,
   SessionStateInfo,
-  SubtitleUpdate
+  SubtitleUpdate,
+  UpdateStatus
 } from '../shared/types'
 
 // Tên channel viết literal (không import IPC constants) để preload bundle thành 1 file duy nhất —
@@ -39,6 +40,9 @@ const api: ControlApi = {
   startOutgoing: () => ipcRenderer.invoke('outgoing:start'),
   stopOutgoing: () => ipcRenderer.invoke('outgoing:stop'),
   setPushToTalk: (active: boolean) => ipcRenderer.invoke('outgoing:ptt', active),
+  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+  checkForUpdate: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),
   onSubtitleUpdate: (cb: (u: SubtitleUpdate) => void) => subscribe('subtitle:update', cb),
   onMetrics: (cb: (m: Metrics) => void) => subscribe('metrics:update', cb),
@@ -53,7 +57,8 @@ const api: ControlApi = {
   onOutgoingMetrics: (cb: (m: Metrics) => void) => subscribe('outgoing:metrics', cb),
   onOutgoingSubtitle: (cb: (u: SubtitleUpdate) => void) => subscribe('outgoing:subtitle', cb),
   onOutgoingSinkState: (cb: (s: PlaybackSinkState) => void) =>
-    subscribe('outgoing:sinkStateChanged', cb)
+    subscribe('outgoing:sinkStateChanged', cb),
+  onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb)
 }
 
 contextBridge.exposeInMainWorld('controlApi', api)

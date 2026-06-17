@@ -1,6 +1,7 @@
-import { dialog, ipcMain, type BrowserWindow } from 'electron'
+import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
 import { writeFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc-contract'
+import type { Updater } from './updater'
 import type {
   AppSettings,
   AudioInputDeviceInfo,
@@ -25,6 +26,7 @@ export interface IpcContext {
   sessions: SessionManager
   outgoing: SessionManager
   debug: DebugRecorder
+  updater: Updater
   controlWindow: BrowserWindow
   engineWindow: BrowserWindow
 }
@@ -48,6 +50,10 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.outgoingStart, () => ctx.outgoing.start())
   ipcMain.handle(IPC.outgoingStop, () => ctx.outgoing.stop())
   ipcMain.handle(IPC.outgoingPtt, (_e, active: boolean) => ctx.outgoing.setPushToTalk(active))
+
+  ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
+  ipcMain.handle(IPC.updateCheck, () => ctx.updater.check())
+  ipcMain.handle(IPC.updateInstall, () => ctx.updater.install())
 
   ipcMain.handle(IPC.transcriptExport, async (_e, format: ExportFormat) => {
     const content = ctx.store.export(format)

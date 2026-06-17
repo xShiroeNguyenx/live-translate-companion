@@ -45,6 +45,8 @@ Tải installer ở trang [**Releases**](https://github.com/xShiroeNguyenx/live-
 
 Mở app → dán **Gemini API key** → **Lưu** → **Bắt đầu dịch**. Overlay phụ đề nổi ở cạnh dưới màn hình (kéo để di chuyển, `Ctrl+Shift+O` bật/tắt click-xuyên).
 
+> **Tự cập nhật:** từ **0.2.2** trở đi app tự kiểm tra & tải bản mới từ GitHub Releases (electron-updater) rồi hiện banner *"Cài & khởi động lại"*. Bản cũ hơn 0.2.2 phải tải tay một lần cuối lên 0.2.2. Cũng có nút **"Kiểm tra cập nhật"** ở chân cửa sổ.
+
 ---
 
 ## Hướng dẫn dùng nhanh

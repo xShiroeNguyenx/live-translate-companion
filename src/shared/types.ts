@@ -102,3 +102,19 @@ export interface WindowsAudioDevice {
 }
 
 export type ExportFormat = 'txt' | 'srt' | 'md'
+
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'none'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+
+export interface UpdateStatus {
+  state: UpdateState
+  version?: string
+  percent?: number
+  error?: string
+}

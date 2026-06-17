@@ -8,6 +8,7 @@ import type {
   SessionStateInfo,
   SubtitleSegment,
   SubtitleUpdate,
+  UpdateStatus,
   WindowsAudioDevice
 } from '../../shared/types'
 
@@ -48,6 +49,8 @@ interface ControlState {
   outgoingMetrics: Metrics
   outgoingSegments: SubtitleSegment[]
   outgoingSinkState: PlaybackSinkState | null
+  appVersion: string
+  update: UpdateStatus
   init(): void
   setHasKey(v: boolean): void
   patchSettings(patch: Partial<AppSettings>): Promise<void>
@@ -71,6 +74,8 @@ export const useControlStore = create<ControlState>((set, get) => ({
   outgoingMetrics: EMPTY_METRICS,
   outgoingSegments: [],
   outgoingSinkState: null,
+  appVersion: '',
+  update: { state: 'idle' },
 
   init: () => {
     if (!api) return
@@ -78,6 +83,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
     void api.hasApiKey().then((hasKey) => set({ hasKey }))
     void api.getOutputDevices().then((outputDevices) => set({ outputDevices }))
     void api.getInputDevices().then((inputDevices) => set({ inputDevices }))
+    void api.getAppVersion().then((appVersion) => set({ appVersion }))
     void get().refreshWindowsOutputs()
 
     api.onSettingsChanged((settings) => set({ settings }))
@@ -97,6 +103,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onOutgoingState((outgoing) => set({ outgoing }))
     api.onOutgoingMetrics((outgoingMetrics) => set({ outgoingMetrics }))
     api.onOutgoingSinkState((outgoingSinkState) => set({ outgoingSinkState }))
+    api.onUpdateStatus((update) => set({ update }))
     api.onOutgoingSubtitle((update) =>
       set((state) => ({ outgoingSegments: applySubtitleUpdate(state.outgoingSegments, update) }))
     )
