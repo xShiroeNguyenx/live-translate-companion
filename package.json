@@ -1,0 +1,42 @@
+{
+  "name": "live-translate-companion",
+  "version": "0.2.1",
+  "description": "Desktop app dịch trực tiếp audio cuộc họp (Meet/Zoom) sang tiếng Việt bằng Gemini 3.5 Live Translate",
+  "main": "out/main/index.js",
+  "author": "NguyenKhanh",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
+    "test": "vitest run",
+    "dist": "electron-vite build && electron-builder",
+    "echo-test": "tsx scripts/echo-test.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.2",
+    "electron-vite": "^5.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8",
+    "zustand": "^5.0.14"
+  }
+}

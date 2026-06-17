@@ -1,0 +1,28 @@
+appId: com.nguyenkhanh.livetranslatecompanion
+productName: Live Translate Companion
+directories:
+  output: release
+
+# CI release: push tag v*.*.* → electron-builder tự tạo GitHub Release + upload installer
+publish:
+  provider: github
+  owner: xShiroeNguyenx
+  repo: live-translate-companion
+  releaseType: release
+# Mặc định **/* + loại trừ — electron-builder tự prune devDependencies trong node_modules
+files:
+  - '!src/**'
+  - '!scripts/**'
+  - '!release/**'
+  - '!{.gitignore,README.md,PLAN.md,electron.vite.config.ts,electron-builder.yml,vitest.config.ts}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!*.wav'
+win:
+  target: nsis
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Live Translate Companion
+  # tên không dấu cách → URL tải về sạch
+  artifactName: LiveTranslateCompanion-Setup-${version}.${ext}
