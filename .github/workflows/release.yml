@@ -5,8 +5,8 @@ on:
     tags:
       - 'v*.*.*'
 
-# 1 job duy nhất (Windows-only): typecheck → test → build → electron-builder publish.
-# electron-builder tự tạo GitHub Release theo tag rồi upload installer NSIS (+ blockmap, latest.yml).
+# 1 job (Windows-only). Tạo release TRƯỚC bằng gh để electron-builder chỉ upload vào release sẵn có
+# → tránh race khiến mỗi artifact (installer/blockmap/latest.yml) tự tạo 1 release trùng tag.
 jobs:
   release:
     runs-on: windows-latest
@@ -29,7 +29,14 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Create GitHub Release (idempotent)
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes || echo "Release đã tồn tại, bỏ qua"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build & publish
+        shell: bash
         run: npm run build && npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

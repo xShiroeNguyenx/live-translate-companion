@@ -143,6 +143,9 @@ export function App(): React.JSX.Element {
           {update.percent !== undefined ? ` ${update.percent}%` : ''}
         </div>
       )}
+      {update.state === 'error' && (
+        <div className="alert warn">⚠ Lỗi kiểm tra cập nhật: {update.error}</div>
+      )}
       {feedbackRisk && (
         <div className="alert warn">
           ⚠ Giọng dịch đang phát vào đúng thiết bị mà loopback thu — app sẽ tạm ngắt thu trong lúc
