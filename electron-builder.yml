@@ -14,6 +14,7 @@ files:
   - '!src/**'
   - '!scripts/**'
   - '!release/**'
+  - '!docs/**'
   - '!{.gitignore,README.md,PLAN.md,electron.vite.config.ts,electron-builder.yml,vitest.config.ts}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!*.wav'

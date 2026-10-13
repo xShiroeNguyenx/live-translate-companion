@@ -4,6 +4,8 @@
 
 ![CI](https://github.com/xShiroeNguyenx/live-translate-companion/actions/workflows/ci.yml/badge.svg)
 
+🌐 **Trang giới thiệu:** https://xshiroenguyenx.github.io/live-translate-companion/
+
 Chạy song song với mọi app họp bằng cách bắt **audio hệ thống** (WASAPI loopback) — không cần bot/plugin tham gia meeting. Kiến trúc chi tiết: [PLAN.md](PLAN.md).
 
 ---
@@ -147,6 +149,7 @@ Node ≥ 22 khuyến nghị (build tooling yêu cầu). Stack: Electron + electr
 GitHub Actions ([.github/workflows](.github/workflows)):
 
 - **CI** (`ci.yml`) — mỗi push lên `main` / mở PR: typecheck + test + build trên `windows-latest`.
+- **Pages** (`pages.yml`): khi push lên `main` có thay đổi trong `docs/`, workflow deploy landing page tĩnh `docs/index.html` lên GitHub Pages. Cần bật một lần: **Settings → Pages → Build and deployment → Source = GitHub Actions**.
 - **Release** (`release.yml`) — khi push tag `v*.*.*`: typecheck + test + build + `electron-builder --publish always` → tự tạo GitHub Release và upload installer. Không cần thêm secret (dùng `GITHUB_TOKEN` sẵn có).
 
 **Ra bản mới (copy-paste, chạy local):**
