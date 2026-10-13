@@ -1,4 +1,5 @@
 import type { SubtitleSegment } from '../../shared/types'
+import { findKeyword } from '../../shared/keywords'
 import { dbToMeterPercent, useStickToBottom } from './ui-helpers'
 
 // Thanh đo mức âm thanh + vạch ngưỡng VAD
@@ -49,18 +50,28 @@ export function VadSlider({
 export function SegmentList({
   segments,
   placeholder,
-  className = ''
+  className = '',
+  keywords = []
 }: {
   segments: SubtitleSegment[]
   placeholder: string
   className?: string
+  // đã chuẩn hoá bằng parseKeywords — segment chứa từ khoá được tô sáng
+  keywords?: string[]
 }): React.JSX.Element {
   const list = useStickToBottom(segments)
   return (
     <div className={`subtitle-list ${className}`} ref={list.ref} onScroll={list.onScroll}>
       {segments.length === 0 && <p className="placeholder">{placeholder}</p>}
       {segments.map((seg) => (
-        <div key={seg.id} className={`segment ${seg.target.final ? 'final' : 'partial'}`}>
+        <div
+          key={seg.id}
+          className={`segment ${seg.target.final ? 'final' : 'partial'} ${
+            findKeyword(seg.source.text, keywords) || findKeyword(seg.target.text, keywords)
+              ? 'hit'
+              : ''
+          }`}
+        >
           {seg.source.text && <p className="src">{seg.source.text}</p>}
           {seg.target.text && <p className="tgt">{seg.target.text}</p>}
         </div>

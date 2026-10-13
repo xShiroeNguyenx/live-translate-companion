@@ -8,7 +8,9 @@ import type {
   SessionStateInfo,
   SubtitleSegment,
   SubtitleUpdate,
+  SummaryStatus,
   UpdateStatus,
+  UsageSummary,
   WindowsAudioDevice
 } from '../../shared/types'
 
@@ -51,6 +53,10 @@ interface ControlState {
   outgoingSinkState: PlaybackSinkState | null
   appVersion: string
   update: UpdateStatus
+  usage: UsageSummary
+  // trạng thái tóm tắt gần nhất theo id phiên
+  summaries: Record<string, SummaryStatus>
+  lastSummary: SummaryStatus | null
   init(): void
   setHasKey(v: boolean): void
   patchSettings(patch: Partial<AppSettings>): Promise<void>
@@ -76,6 +82,9 @@ export const useControlStore = create<ControlState>((set, get) => ({
   outgoingSinkState: null,
   appVersion: '',
   update: { state: 'idle' },
+  usage: { todayUsd: 0, monthUsd: 0, budgetUsd: 0 },
+  summaries: {},
+  lastSummary: null,
 
   init: () => {
     if (!api) return
@@ -104,6 +113,14 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onOutgoingMetrics((outgoingMetrics) => set({ outgoingMetrics }))
     api.onOutgoingSinkState((outgoingSinkState) => set({ outgoingSinkState }))
     api.onUpdateStatus((update) => set({ update }))
+    void api.getUsage().then((usage) => set({ usage }))
+    api.onUsage((usage) => set({ usage }))
+    api.onSummaryStatus((status) =>
+      set((state) => ({
+        summaries: { ...state.summaries, [status.id]: status },
+        lastSummary: status
+      }))
+    )
     api.onOutgoingSubtitle((update) =>
       set((state) => ({ outgoingSegments: applySubtitleUpdate(state.outgoingSegments, update) }))
     )

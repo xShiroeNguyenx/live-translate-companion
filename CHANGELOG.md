@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.4.0] — 2026-10-13
+
+### Thêm mới
+- **Tóm tắt cuộc họp.**
+  - Khi dừng dịch, app tự tóm tắt bằng Gemini Flash (mặc định `gemini-flash-latest`).
+  - Bản tóm tắt gồm 4 mục: Tóm tắt, Quyết định, Việc cần làm (dạng checklist), Câu hỏi còn mở.
+  - Lời bạn nói qua chiều đi được trộn vào với nhãn "Tôi".
+  - Kết quả lưu thành `…_tom-tat.md` cạnh file transcript.
+  - Phiên quá ngắn sẽ được bỏ qua.
+- **Tab Lịch sử.**
+  - Danh sách các phiên đã lưu, kèm thời lượng và chi phí.
+  - Tìm kiếm trong transcript và tóm tắt, không phân biệt dấu.
+  - Xem lại transcript song ngữ, tóm tắt hoặc tóm tắt lại, mở file, xoá phiên.
+- **Chi phí theo ngày và tháng, có giới hạn tháng.**
+  - Chi phí được cộng dồn cho cả 2 chiều và giữ lại qua các lần mở app.
+  - Tới 80% giới hạn: app báo trước.
+  - Tới 100%: app tự dừng cả 2 chiều và chặn bắt đầu lại.
+- **Ngữ cảnh và thuật ngữ cuộc họp.**
+  - App gửi kèm phiên dịch dưới dạng `systemInstruction`.
+  - Nếu model không nhận, app tự kết nối lại không có ngữ cảnh và hiện cảnh báo.
+  - Bản tóm tắt luôn dùng ngữ cảnh.
+- **Từ khoá cần chú ý.**
+  - Câu có tên bạn hoặc từ khoá được tô vàng trên phụ đề và overlay.
+  - App hiện thông báo Windows khi bạn đang ở cửa sổ khác.
+  - Không phân biệt hoa thường, có dấu hay không dấu.
+- **Khay hệ thống.**
+  - Đóng cửa sổ thì app thu nhỏ xuống khay và vẫn dịch tiếp.
+  - Menu ở khay: bật/tắt 2 chiều, ẩn/hiện overlay, thoát.
+- **Phím tắt toàn cục `Ctrl+Alt+T`** để bắt đầu/dừng dịch chiều về.
+- **Chọn ngôn ngữ đích cho chiều về:** Việt, Anh, Nhật, Hàn, Trung, Thái, Indonesia, Pháp, Đức, Tây Ban Nha.
+- Chiều đi cũng có thêm các ngôn ngữ đích mới.
+
+### Thay đổi
+- Cửa sổ có 3 tab: **Dịch / Lịch sử / Cài đặt**.
+- Tab Cài đặt có thêm các mục "Ngữ cảnh & từ khoá", "Tự lưu & tóm tắt", "Chi phí".
+- Lịch sử chỉ được ghi khi bật Tự lưu.
+
 ## [0.3.0] — 2026-10-13
 
 ### Thêm mới

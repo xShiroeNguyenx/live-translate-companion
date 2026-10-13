@@ -12,6 +12,8 @@ export interface SessionStateInfo {
   state: SessionState
   error?: string
   usingFallbackClient?: boolean
+  // model Live từ chối systemInstruction → phiên này chạy không có ngữ cảnh cuộc họp
+  contextDisabled?: boolean
 }
 
 export interface Metrics {
@@ -62,6 +64,50 @@ export interface AppSettings {
   autoSaveEnabled: boolean
   autoSaveFormat: ExportFormat
   autoSaveDir: string
+  // ngữ cảnh/thuật ngữ cuộc họp — gửi kèm phiên Live (nếu model nhận) và luôn dùng cho tóm tắt
+  meetingContext: string
+  // từ khoá cần chú ý (phân tách bằng dấu phẩy/xuống dòng) — tô sáng + thông báo Windows
+  highlightKeywords: string
+  autoSummary: boolean
+  summaryModel: string
+  // 0 = không giới hạn
+  monthlyBudgetUsd: number
+  minimizeToTray: boolean
+}
+
+export type SessionDirection = 'incoming' | 'outgoing'
+
+// Bản ghi lịch sử 1 phiên — userData/history/<id>.json
+export interface HistoryRecord {
+  id: string
+  direction: SessionDirection
+  startedAt: number
+  endedAt: number
+  targetLanguage: string
+  secondsSent: number
+  costUsd: number
+  transcriptFile: string | null
+  summaryFile?: string
+  summary?: string
+  segments: SubtitleSegment[]
+}
+
+export interface HistoryEntry extends Omit<HistoryRecord, 'segments' | 'summary'> {
+  preview: string
+  segmentCount: number
+  hasSummary: boolean
+}
+
+export interface SummaryStatus {
+  id: string
+  state: 'running' | 'done' | 'error'
+  error?: string
+}
+
+export interface UsageSummary {
+  todayUsd: number
+  monthUsd: number
+  budgetUsd: number
 }
 
 export interface PlaybackConfig {

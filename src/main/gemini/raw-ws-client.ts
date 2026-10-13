@@ -23,6 +23,9 @@ export class RawWsLiveClient implements GeminiLiveClient {
           JSON.stringify({
             setup: {
               model: MODEL_ID,
+              ...(opts.systemInstruction
+                ? { systemInstruction: { parts: [{ text: opts.systemInstruction }] } }
+                : {}),
               generationConfig: {
                 responseModalities: ['AUDIO'],
                 translationConfig: {

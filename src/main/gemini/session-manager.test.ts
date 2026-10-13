@@ -73,6 +73,7 @@ function setup(overrides: Partial<SessionManagerDeps> = {}): {
     getTargetLanguage: overrides.getTargetLanguage ?? ((): string => 'vi'),
     getVadThresholdDb: overrides.getVadThresholdDb ?? ((): number => -50),
     getGateMode: overrides.getGateMode,
+    getSystemInstruction: overrides.getSystemInstruction,
     startCapture: vi.fn(async () => {}),
     stopCapture: vi.fn(async () => {}),
     onPlaybackChunk: vi.fn(),
@@ -199,6 +200,48 @@ describe('SessionManager state machine', () => {
     expect(raw.sessions.length).toBe(1)
     expect(states.at(-1)?.usingFallbackClient).toBe(true)
     await manager.stop()
+  })
+
+  it('gửi ngữ cảnh cuộc họp làm systemInstruction', async () => {
+    const { manager, sdk, deps } = setup()
+    deps.getSystemInstruction = (): string => 'Ngữ cảnh: dự án X'
+    await manager.start()
+    expect(sdk.lastOpts.systemInstruction).toBe('Ngữ cảnh: dự án X')
+    expect(manager.getStateInfo().contextDisabled).toBeUndefined()
+    await manager.stop()
+  })
+
+  it('connect bị từ chối systemInstruction lúc start → thử lại không ngữ cảnh', async () => {
+    const { manager, sdk, states, deps } = setup()
+    deps.getSystemInstruction = (): string => 'ctx'
+    sdk.failNext = new Error('Invalid JSON payload: Unknown name "system_instruction"')
+    const result = await manager.start()
+    expect(result.ok).toBe(true)
+    expect(sdk.opts.length).toBe(2)
+    expect(sdk.lastOpts.systemInstruction).toBeUndefined()
+    expect(states.at(-1)?.contextDisabled).toBe(true)
+    await manager.stop()
+  })
+
+  it('server đóng vì systemInstruction giữa phiên → kết nối lại không ngữ cảnh, vẫn dùng SDK', async () => {
+    const { manager, sdk, raw, deps } = setup()
+    deps.getSystemInstruction = (): string => 'ctx'
+    await manager.start()
+    sdk.lastOpts.callbacks.onClose({ code: 1007, reason: 'system instruction is not supported' })
+    await vi.advanceTimersByTimeAsync(10)
+    expect(sdk.sessions.length).toBe(2)
+    expect(sdk.lastOpts.systemInstruction).toBeUndefined()
+    expect(raw.sessions.length).toBe(0)
+    await manager.stop()
+  })
+
+  it('lỗi khác (không liên quan systemInstruction) vẫn làm start thất bại', async () => {
+    const { manager, sdk, deps } = setup()
+    deps.getSystemInstruction = (): string => 'ctx'
+    sdk.failNext = new Error('API key not valid')
+    const result = await manager.start()
+    expect(result.ok).toBe(false)
+    expect(sdk.opts.length).toBe(1)
   })
 
   it('stop: đóng session, dừng capture, flush playback, về idle', async () => {

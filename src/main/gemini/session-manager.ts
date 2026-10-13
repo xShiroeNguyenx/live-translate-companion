@@ -3,6 +3,7 @@ import { FRAME_MS, IDLE_DISCONNECT_MS, PRICE_USD_PER_MINUTE } from '../../shared
 import type { Metrics, SessionState, SessionStateInfo } from '../../shared/types'
 import type { SubtitleStore } from '../subtitles/store'
 import {
+  isSystemInstructionRejection,
   isTranslationConfigRejection,
   type GeminiLiveClient,
   type GeminiLiveSession,
@@ -20,6 +21,8 @@ export interface SessionManagerDeps {
   onPlaybackFlush(): void
   // 'vad' (mặc định) gửi theo cổng RMS; 'ptt' chỉ gửi khi đang giữ nút nói (chiều đi)
   getGateMode?(): 'vad' | 'ptt'
+  // ngữ cảnh cuộc họp gửi làm systemInstruction; bị từ chối thì tự tắt cho phiên đó
+  getSystemInstruction?(): string | undefined
 }
 
 const MAX_PENDING_FRAMES = 50
@@ -42,6 +45,7 @@ export class SessionManager extends EventEmitter {
   private lastRmsDb = -100
   private lastVoiceAt = 0
   private backoffMs = 1000
+  private contextDisabled = false
   private metricsTimer: ReturnType<typeof setInterval> | null = null
   private goAwayTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -57,12 +61,21 @@ export class SessionManager extends EventEmitter {
   getStateInfo(): SessionStateInfo {
     return {
       state: this.state,
-      usingFallbackClient: this.clientIndex > 0
+      usingFallbackClient: this.clientIndex > 0,
+      ...(this.contextDisabled ? { contextDisabled: true } : {})
     }
   }
 
   isStarted(): boolean {
     return this.started
+  }
+
+  getStartedAt(): number {
+    return this.sessionStartedAt
+  }
+
+  getMetrics(): Metrics {
+    return this.metrics()
   }
 
   async start(): Promise<{ ok: boolean; error?: string }> {
@@ -76,6 +89,7 @@ export class SessionManager extends EventEmitter {
     this.secondsSent = 0
     this.reconnects = 0
     this.backoffMs = 1000
+    this.contextDisabled = false
     this.pendingFrames = []
     this.pttActive = false
     this.sessionStartedAt = Date.now()
@@ -84,7 +98,12 @@ export class SessionManager extends EventEmitter {
     this.store.clear()
     this.setState('connecting')
     try {
-      await this.ensureConnected()
+      try {
+        await this.ensureConnected()
+      } catch (err) {
+        if (!this.disableContextIfRejected(err)) throw err
+        await this.ensureConnected()
+      }
       await this.deps.startCapture()
       this.metricsTimer = setInterval(() => this.onMetricsTick(), 500)
       this.setState('gated')
@@ -230,6 +249,7 @@ export class SessionManager extends EventEmitter {
       apiKey,
       targetLanguage: this.deps.getTargetLanguage(),
       resumptionHandle: this.resumptionHandle,
+      systemInstruction: this.contextDisabled ? undefined : this.deps.getSystemInstruction?.(),
       callbacks: {
         onOpen: () => {},
         onMessage: (ev) => this.handleServerEvent(ev),
@@ -292,6 +312,14 @@ export class SessionManager extends EventEmitter {
     this.session = null
     if (!this.started) return
 
+    if (this.disableContextIfRejected(ev.reason)) {
+      this.reconnects += 1
+      void this.ensureConnected()
+        .then(() => this.setState(this.vad.open ? 'streaming' : 'gated'))
+        .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
+      return
+    }
+
     if (this.clientIndex === 0 && this.clients.length > 1 && isTranslationConfigRejection(ev.reason)) {
       this.clientIndex = 1
       console.warn('SDK bị từ chối translationConfig — chuyển sang raw WebSocket client')
@@ -303,6 +331,15 @@ export class SessionManager extends EventEmitter {
     }
 
     this.scheduleReconnect(`Kết nối đóng (${ev.code}) ${ev.reason}`.trim())
+  }
+
+  // true nếu lỗi do model không nhận systemInstruction và vừa tắt ngữ cảnh → nên kết nối lại ngay
+  private disableContextIfRejected(errOrReason: unknown): boolean {
+    if (this.contextDisabled || !this.deps.getSystemInstruction?.()) return false
+    if (!isSystemInstructionRejection(errOrReason)) return false
+    console.warn('Model Live từ chối systemInstruction — chạy phiên này không có ngữ cảnh')
+    this.contextDisabled = true
+    return true
   }
 
   private scheduleReconnect(reason: string): void {
@@ -356,6 +393,7 @@ export class SessionManager extends EventEmitter {
       state,
       usingFallbackClient: this.clientIndex > 0
     }
+    if (this.contextDisabled) info.contextDisabled = true
     if (error) info.error = error
     this.emit('state', info)
   }

@@ -89,3 +89,13 @@ body {
     opacity: 0;
   }
 }
+
+/* có từ khoá cần chú ý (tên mình…) */
+.line.hit {
+  outline: 2px solid #facc15;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+}
+
+.line.hit .tgt {
+  color: #fef08a;
+}

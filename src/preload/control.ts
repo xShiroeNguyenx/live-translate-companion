@@ -9,7 +9,9 @@ import type {
   PlaybackSinkState,
   SessionStateInfo,
   SubtitleUpdate,
-  UpdateStatus
+  SummaryStatus,
+  UpdateStatus,
+  UsageSummary
 } from '../shared/types'
 
 // Tên channel viết literal (không import IPC constants) để preload bundle thành 1 file duy nhất —
@@ -46,6 +48,13 @@ const api: ControlApi = {
   getAutoSaveDir: () => ipcRenderer.invoke('autosave:getDir'),
   pickAutoSaveDir: () => ipcRenderer.invoke('autosave:pickDir'),
   openAutoSaveDir: () => ipcRenderer.invoke('autosave:openDir'),
+  listHistory: (query: string) => ipcRenderer.invoke('history:list', query),
+  getHistory: (id: string) => ipcRenderer.invoke('history:get', id),
+  deleteHistory: (id: string) => ipcRenderer.invoke('history:delete', id),
+  summarizeHistory: (id: string) => ipcRenderer.invoke('history:summarize', id),
+  openHistoryFile: (id: string, kind: 'transcript' | 'summary') =>
+    ipcRenderer.invoke('history:openFile', id, kind),
+  getUsage: () => ipcRenderer.invoke('usage:get'),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),
   onSubtitleUpdate: (cb: (u: SubtitleUpdate) => void) => subscribe('subtitle:update', cb),
   onMetrics: (cb: (m: Metrics) => void) => subscribe('metrics:update', cb),
@@ -61,7 +70,10 @@ const api: ControlApi = {
   onOutgoingSubtitle: (cb: (u: SubtitleUpdate) => void) => subscribe('outgoing:subtitle', cb),
   onOutgoingSinkState: (cb: (s: PlaybackSinkState) => void) =>
     subscribe('outgoing:sinkStateChanged', cb),
-  onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb)
+  onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb),
+  onHistoryChanged: (cb: () => void) => subscribe('history:changed', cb),
+  onSummaryStatus: (cb: (s: SummaryStatus) => void) => subscribe('summary:status', cb),
+  onUsage: (cb: (u: UsageSummary) => void) => subscribe('usage:update', cb)
 }
 
 contextBridge.exposeInMainWorld('controlApi', api)

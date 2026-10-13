@@ -3,13 +3,17 @@ import type {
   AudioInputDeviceInfo,
   AudioOutputDeviceInfo,
   ExportFormat,
+  HistoryEntry,
+  HistoryRecord,
   Metrics,
   OutgoingConfig,
   PlaybackConfig,
   PlaybackSinkState,
   SessionStateInfo,
   SubtitleUpdate,
+  SummaryStatus,
   UpdateStatus,
+  UsageSummary,
   WindowsAudioDevice
 } from './types'
 
@@ -37,6 +41,12 @@ export const IPC = {
   autoSaveGetDir: 'autosave:getDir',
   autoSavePickDir: 'autosave:pickDir',
   autoSaveOpenDir: 'autosave:openDir',
+  historyList: 'history:list',
+  historyGet: 'history:get',
+  historyDelete: 'history:delete',
+  historySummarize: 'history:summarize',
+  historyOpenFile: 'history:openFile',
+  usageGet: 'usage:get',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -57,6 +67,9 @@ export const IPC = {
   evMicPlaybackFlush: 'mic:playbackFlush',
   evOutgoingConfig: 'outgoing:config',
   evUpdateStatus: 'update:status',
+  evHistoryChanged: 'history:changed',
+  evSummaryStatus: 'summary:status',
+  evUsageUpdate: 'usage:update',
 
   audioChunk: 'audio:chunk',
   captureError: 'capture:error',
@@ -93,6 +106,12 @@ export interface ControlApi {
   getAutoSaveDir(): Promise<string>
   pickAutoSaveDir(): Promise<string | null>
   openAutoSaveDir(): Promise<void>
+  listHistory(query: string): Promise<HistoryEntry[]>
+  getHistory(id: string): Promise<HistoryRecord | null>
+  deleteHistory(id: string): Promise<boolean>
+  summarizeHistory(id: string): Promise<{ ok: boolean; error?: string }>
+  openHistoryFile(id: string, kind: 'transcript' | 'summary'): Promise<void>
+  getUsage(): Promise<UsageSummary>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void
@@ -105,6 +124,9 @@ export interface ControlApi {
   onOutgoingSubtitle(cb: (u: SubtitleUpdate) => void): () => void
   onOutgoingSinkState(cb: (s: PlaybackSinkState) => void): () => void
   onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
+  onHistoryChanged(cb: () => void): () => void
+  onSummaryStatus(cb: (s: SummaryStatus) => void): () => void
+  onUsage(cb: (u: UsageSummary) => void): () => void
 }
 
 export interface OverlayApi {

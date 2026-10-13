@@ -18,6 +18,7 @@
 | M6 hardening + ship | ✅ | test reconnect/GoAway/stale-close | Soak test 60 phút + cài installer máy sạch |
 | M7 chiều đi VI→JA | ✅ | 3 test PTT + 2-instance | Meet 2 tài khoản: bên kia chỉ nghe tiếng Nhật |
 | v0.3 tự lưu + UI 2 tab | ✅ | 5 test autosave | Kill app giữa phiên → file vẫn còn nội dung |
+| v0.4 tóm tắt, lịch sử, chi phí, ngữ cảnh, từ khoá, tray, ngôn ngữ | ✅ | 24 test mới (history, summary, usage, keywords, systemInstruction fallback) | Tóm tắt 1 cuộc họp thật; model Live có nhận `systemInstruction` không; tray + `Ctrl+Alt+T` |
 
 **Khác biệt so với thiết kế ban đầu (quyết định lúc triển khai):**
 - SDK `@google/genai` 2.8.0 **đã có sẵn** `translationConfig` trong `LiveConnectConfig` (mục 2 lo SDK chưa kịp hỗ trợ — không xảy ra). SDK vẫn là client chính, raw-ws là fallback runtime tự động.
@@ -27,6 +28,19 @@
 - Sửa race: close event đến muộn của kết nối cũ được nhận diện qua danh tính session (box) để không xoá session mới sau khi rotate.
 - **Bổ sung ngoài plan:** tự ngắt segment phụ đề theo dấu câu của bản dịch (≥50 ký tự, trần 250) để tránh "tường chữ" khi người nói liên tục — lợi cho cả panel, overlay lẫn export `.srt`; icon app (SVG → PNG render bằng Electron, `scripts/render-icon.mjs`); overlay giữ 50 segment lịch sử, cuộn lại được khi không click-through.
 - **v0.3.0:** cửa sổ Control tách 2 tab **Dịch** / **Cài đặt** (gom mọi setting, cảnh báo rút gọn kèm nút "Sửa →"); `TranscriptAutoSaver` (`main/subtitles/autosave.ts`) tự lưu mỗi phiên của cả 2 chiều — ghi lại toàn bộ phiên sau debounce 1,5s (tmp → rename), flush khi phiên về idle/error và `before-quit`; IPC mới `autosave:getDir/pickDir/openDir`.
+- **v0.4.0:**
+  - **Lịch sử:** mỗi lần autosave flush thì ghi kèm bản ghi `HistoryRecord` (segments + metrics) vào `userData/history/<id>.json`, qua `main/history/history-store.ts`. `upsert` giữ lại các trường cũ như `summary`.
+  - **Tóm tắt:** `main/summary/summary-service.ts` chạy khi phiên chiều về về idle/error.
+    - Trộn thêm các phiên chiều đi chạy chồng thời gian (nhãn "Tôi").
+    - Gọi `models.generateContent` qua `summarizer.ts`, ghi `…_tom-tat.md`.
+  - **Chi phí:** `main/usage/usage-tracker.ts` nhận chi phí luỹ kế của phiên từ metrics rồi tự tính phần tăng thêm, lưu theo ngày vào `userData/usage.json`.
+    - Giới hạn tháng được kiểm tra trong `guardedStart` và ở mỗi tick metrics.
+  - **Ngữ cảnh:** gửi `systemInstruction` cho phiên Live (`getSystemInstruction` dep).
+    - Lỗi khớp `isSystemInstructionRejection`, xảy ra lúc start hoặc lúc close → tắt ngữ cảnh cho phiên đó và kết nối lại ngay, không chuyển sang raw-ws.
+    - `SessionStateInfo.contextDisabled` báo cho UI.
+  - **Từ khoá:** `shared/keywords.ts` (bỏ dấu, chữ thường) dùng chung cho main (`KeywordNotifier` → `Notification`) và renderer (tô sáng).
+  - **Tray:** `main/tray.ts`; `close` của control window bị chặn để ẩn xuống tray trừ khi `quitting` (cờ này được bật ở `before-quit` / menu Thoát).
+  - Renderer tách `SettingsPanel.tsx` và `HistoryPanel.tsx`; danh sách ngôn ngữ chung ở `shared/languages.ts`.
 
 ## 1. Bối cảnh & Mục tiêu
 

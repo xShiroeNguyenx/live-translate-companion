@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { findKeyword, parseKeywords } from '../../shared/keywords'
 import type { AppSettings, SubtitleSegment, SubtitleUpdate } from '../../shared/types'
 
 const HISTORY_LIMIT = 50
@@ -48,6 +49,7 @@ export function App(): React.JSX.Element {
   const background = `rgba(10, 12, 16, ${settings.overlayOpacity})`
   // khoá click: chỉ hiện vài câu cuối neo đáy; mở khoá: cuộn lại được toàn bộ lịch sử
   const visible = settings.overlayClickThrough ? segments.slice(-LOCKED_VISIBLE) : segments
+  const keywords = parseKeywords(settings.highlightKeywords)
 
   return (
     <div className={`overlay ${settings.overlayClickThrough ? 'locked' : 'interactive'}`}>
@@ -58,7 +60,15 @@ export function App(): React.JSX.Element {
       )}
       <div className="stack" ref={stackRef}>
         {visible.map((seg) => (
-          <div key={seg.id} className="line" style={{ background }}>
+          <div
+            key={seg.id}
+            className={`line ${
+              findKeyword(seg.source.text, keywords) || findKeyword(seg.target.text, keywords)
+                ? 'hit'
+                : ''
+            }`}
+            style={{ background }}
+          >
             {seg.source.text && (
               <p className="src" style={{ fontSize: Math.max(11, Math.round(fontSize * 0.62)) }}>
                 {seg.source.text}

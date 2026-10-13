@@ -1,15 +1,12 @@
 import { useState } from 'react'
+import { LANGUAGES, languageShort } from '../../shared/languages'
 import type { OutgoingMode } from '../../shared/types'
 import { useControlStore } from './store'
 import { formatDuration, isVirtualCable, STATE_COLORS, STATE_LABELS } from './ui-helpers'
 import { LevelMeter, SegmentList, VadSlider, Warn } from './widgets'
 
-const TARGET_OPTIONS: Array<{ code: string; label: string }> = [
-  { code: 'ja', label: 'Tiếng Nhật' },
-  { code: 'en', label: 'Tiếng Anh' },
-  { code: 'ko', label: 'Tiếng Hàn' },
-  { code: 'zh', label: 'Tiếng Trung' }
-]
+// chiều đi: người dùng nói tiếng Việt → dịch sang ngôn ngữ khác
+const TARGET_OPTIONS = LANGUAGES.filter((l) => l.code !== 'vi')
 
 // Tab "Dịch": bật/tắt chiều đi, PTT, transcript
 export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
@@ -28,9 +25,7 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
   // chiều đi nguy hiểm nếu KHÔNG phải mic ảo → giọng dịch phát ra loa thật cho cả phòng nghe
   const notVirtual = running && sinkLabel !== '' && !isVirtualCable(sinkLabel)
   const sinkError = running && outgoingSinkState && !outgoingSinkState.ok ? outgoingSinkState.error : null
-  const targetLabel =
-    TARGET_OPTIONS.find((o) => o.code === settings.outgoingTargetLanguage)?.label ??
-    settings.outgoingTargetLanguage
+  const targetLabel = languageShort(settings.outgoingTargetLanguage)
 
   const toggle = async (): Promise<void> => {
     setBusy(true)
@@ -54,12 +49,15 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
     <section className="card">
       <div className="card-head">
         <span className="led" style={{ background: STATE_COLORS[outgoing.state] }} />
-        <h2>Chiều đi · Việt → {targetLabel}</h2>
+        <h2>Chiều đi · Tôi → {targetLabel}</h2>
         <span className="state-label">{STATE_LABELS[outgoing.state]}</span>
         {outgoing.usingFallbackClient && <span className="badge">raw-ws</span>}
       </div>
 
       {error && <div className="alert error">{error}</div>}
+      {outgoing.contextDisabled && (
+        <Warn onFix={onOpenSettings}>Model không nhận “Ngữ cảnh cuộc họp” — phiên này dịch không có ngữ cảnh.</Warn>
+      )}
       {sinkError && (
         <Warn onFix={onOpenSettings}>Không route được tới thiết bị “Phát vào” ({sinkError}).</Warn>
       )}

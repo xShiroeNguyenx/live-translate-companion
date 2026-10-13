@@ -2,7 +2,11 @@ import { app } from 'electron'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { OUTGOING_DEFAULT_TARGET, VAD_DEFAULT_THRESHOLD_DB } from '../shared/constants'
+import {
+  DEFAULT_SUMMARY_MODEL,
+  OUTGOING_DEFAULT_TARGET,
+  VAD_DEFAULT_THRESHOLD_DB
+} from '../shared/constants'
 import type { AppSettings } from '../shared/types'
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -25,7 +29,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   overlayVisible: true,
   autoSaveEnabled: true,
   autoSaveFormat: 'txt',
-  autoSaveDir: ''
+  autoSaveDir: '',
+  meetingContext: '',
+  highlightKeywords: '',
+  autoSummary: true,
+  summaryModel: DEFAULT_SUMMARY_MODEL,
+  monthlyBudgetUsd: 0,
+  minimizeToTray: true
 }
 
 export class SettingsStore extends EventEmitter {

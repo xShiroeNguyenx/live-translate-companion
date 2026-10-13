@@ -17,6 +17,14 @@ export const SEGMENT_GAP_MS = 2000
 export const SEGMENT_MIN_SPLIT_CHARS = 50
 export const SEGMENT_MAX_CHARS = 250
 export const OVERLAY_TOGGLE_SHORTCUT = 'CommandOrControl+Shift+O'
+// bật/tắt chiều về từ bất cứ đâu (tránh Ctrl+Shift+T của trình duyệt)
+export const INCOMING_TOGGLE_SHORTCUT = 'CommandOrControl+Alt+T'
+
+// alias luôn trỏ tới bản Flash mới nhất — đổi được trong Cài đặt
+export const DEFAULT_SUMMARY_MODEL = 'gemini-flash-latest'
+// phiên quá ngắn thì không tự tóm tắt (tính theo ký tự bản dịch)
+export const SUMMARY_MIN_CHARS = 200
+export const BUDGET_WARN_RATIO = 0.8
 
 // Chiều đi (nói tiếng Việt → giọng đích vào meeting)
 export const OUTGOING_DEFAULT_TARGET = 'ja'

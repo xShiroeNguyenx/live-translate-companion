@@ -409,3 +409,145 @@ input[type='range'] {
   color: #f3f4f6;
   font-size: 14px;
 }
+
+input[type='text'],
+input[type='search'],
+textarea {
+  flex: 1;
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid #2a313b;
+  border-radius: 6px;
+  color: #e5e7eb;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 0;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.narrow-input {
+  flex: 0 0 72px;
+  width: 72px;
+}
+
+.field-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #9ca3af;
+}
+
+button.danger {
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #7f1d1d;
+}
+
+/* ── Chi phí ── */
+.usage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #9ca3af;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+}
+
+.usage-bar {
+  flex: 1;
+  height: 4px;
+  background: #0d1117;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.usage-bar > div {
+  height: 100%;
+  background: #22c55e;
+}
+
+.usage-bar.warn > div {
+  background: #f59e0b;
+}
+
+.usage-bar.over > div {
+  background: #ef4444;
+}
+
+/* ── Từ khoá ── */
+.segment.hit {
+  border-left-color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.segment.hit .tgt {
+  color: #fef08a;
+}
+
+/* ── Lịch sử ── */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  white-space: normal;
+  background: #0d1117;
+  border-color: #2a313b;
+  padding: 6px 8px;
+}
+
+.history-meta {
+  display: flex;
+  gap: 10px;
+  color: #9ca3af;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-preview {
+  color: #e5e7eb;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle-list.history {
+  height: 320px;
+}
+
+.summary-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 13px;
+  background: #0d1117;
+  border-radius: 6px;
+  padding: 8px 10px;
+  user-select: text;
+}
+
+.placeholder.static {
+  margin: 12px 0;
+}

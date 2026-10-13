@@ -28,6 +28,8 @@ export interface GeminiConnectOptions {
   apiKey: string
   targetLanguage: string
   resumptionHandle?: string
+  // ngữ cảnh/thuật ngữ cuộc họp; model có thể từ chối → xem isSystemInstructionRejection
+  systemInstruction?: string
   callbacks: GeminiLiveCallbacks
 }
 
@@ -44,9 +46,11 @@ export interface GeminiLiveClient {
 
 export function buildLiveConnectConfig(
   targetLanguage: string,
-  resumptionHandle?: string
+  resumptionHandle?: string,
+  systemInstruction?: string
 ): LiveConnectConfig {
   return {
+    ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
     responseModalities: [Modality.AUDIO],
     inputAudioTranscription: {},
     outputAudioTranscription: {},
@@ -107,6 +111,27 @@ export function isTranslationConfigRejection(errOrReason: unknown): boolean {
   )
 }
 
+export function isSystemInstructionRejection(errOrReason: unknown): boolean {
+  const msg = String(
+    (errOrReason as { message?: string })?.message ?? errOrReason ?? ''
+  ).toLowerCase()
+  return (
+    msg.includes('system_instruction') ||
+    msg.includes('systeminstruction') ||
+    msg.includes('system instruction')
+  )
+}
+
+// Ghép ngữ cảnh user nhập thành chỉ dẫn cho phiên dịch
+export function buildContextInstruction(context: string): string | undefined {
+  const text = context.trim()
+  if (!text) return undefined
+  return (
+    'Ngữ cảnh cuộc họp và bảng thuật ngữ (giữ đúng tên riêng, dịch thuật ngữ theo bảng này):\n' +
+    text
+  )
+}
+
 export class SdkLiveClient implements GeminiLiveClient {
   readonly name = 'sdk' as const
 
@@ -114,7 +139,11 @@ export class SdkLiveClient implements GeminiLiveClient {
     const ai = new GoogleGenAI({ apiKey: opts.apiKey, httpOptions: { apiVersion: 'v1beta' } })
     const session: Session = await ai.live.connect({
       model: MODEL_ID,
-      config: buildLiveConnectConfig(opts.targetLanguage, opts.resumptionHandle),
+      config: buildLiveConnectConfig(
+        opts.targetLanguage,
+        opts.resumptionHandle,
+        opts.systemInstruction
+      ),
       callbacks: {
         onopen: () => opts.callbacks.onOpen(),
         onmessage: (m: LiveServerMessage) => opts.callbacks.onMessage(normalizeServerMessage(m)),

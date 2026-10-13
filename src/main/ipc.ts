@@ -1,5 +1,5 @@
 import { app, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc-contract'
 import type { Updater } from './updater'
 import type {
@@ -7,13 +7,16 @@ import type {
   AudioInputDeviceInfo,
   AudioOutputDeviceInfo,
   ExportFormat,
-  PlaybackSinkState
+  PlaybackSinkState,
+  UsageSummary
 } from '../shared/types'
 import {
   listWindowsOutputDevices,
   setWindowsDefaultOutputDevice
 } from './audio/windows-default-device'
 import type { DebugRecorder } from './debug-recorder'
+import type { HistoryStore } from './history/history-store'
+import type { SummaryService } from './summary/summary-service'
 import type { SessionManager } from './gemini/session-manager'
 import { hasApiKey, setApiKey } from './secrets'
 import type { SettingsStore } from './settings'
@@ -25,6 +28,12 @@ export interface IpcContext {
   store: SubtitleStore
   sessions: SessionManager
   outgoing: SessionManager
+  // start có kiểm tra giới hạn chi phí tháng
+  startIncoming(): Promise<{ ok: boolean; error?: string }>
+  startOutgoing(): Promise<{ ok: boolean; error?: string }>
+  history: HistoryStore
+  summary: SummaryService
+  usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
   getAutoSaveDir: () => string
@@ -45,10 +54,10 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.secretsSetApiKey, (_e, key: string) => setApiKey(key))
   ipcMain.handle(IPC.secretsHasApiKey, () => hasApiKey())
 
-  ipcMain.handle(IPC.sessionStart, () => ctx.sessions.start())
+  ipcMain.handle(IPC.sessionStart, () => ctx.startIncoming())
   ipcMain.handle(IPC.sessionStop, () => ctx.sessions.stop())
 
-  ipcMain.handle(IPC.outgoingStart, () => ctx.outgoing.start())
+  ipcMain.handle(IPC.outgoingStart, () => ctx.startOutgoing())
   ipcMain.handle(IPC.outgoingStop, () => ctx.outgoing.stop())
   ipcMain.handle(IPC.outgoingPtt, (_e, active: boolean) => ctx.outgoing.setPushToTalk(active))
 
@@ -72,6 +81,18 @@ export function registerIpc(ctx: IpcContext): void {
     mkdirSync(dir, { recursive: true })
     await shell.openPath(dir)
   })
+
+  ipcMain.handle(IPC.historyList, (_e, query: string) => ctx.history.list(query ?? ''))
+  ipcMain.handle(IPC.historyGet, (_e, id: string) => ctx.history.get(id))
+  ipcMain.handle(IPC.historyDelete, (_e, id: string) => ctx.history.delete(id))
+  ipcMain.handle(IPC.historySummarize, (_e, id: string) => ctx.summary.summarize(id))
+  // mở theo id (không nhận đường dẫn từ renderer) — chỉ mở được file của chính bản ghi
+  ipcMain.handle(IPC.historyOpenFile, async (_e, id: string, kind: 'transcript' | 'summary') => {
+    const rec = ctx.history.get(id)
+    const file = kind === 'summary' ? rec?.summaryFile : rec?.transcriptFile
+    if (file && existsSync(file)) await shell.openPath(file)
+  })
+  ipcMain.handle(IPC.usageGet, () => ctx.usageSummary())
 
   ipcMain.handle(IPC.transcriptExport, async (_e, format: ExportFormat) => {
     const content = ctx.store.export(format)
