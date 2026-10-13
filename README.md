@@ -14,7 +14,8 @@ Chạy song song với mọi app họp bằng cách bắt **audio hệ thống**
 - **Ngôn ngữ nguồn tự nhận diện** (Nhật/Anh/70+ ngôn ngữ) — chỉ cấu hình ngôn ngữ đích.
 - **Phụ đề song ngữ** trực tiếp trong cửa sổ điều khiển + **overlay** luôn-nổi, trong suốt, click-through (`Ctrl+Shift+O`); tự ngắt theo câu, cuộn xem lại được.
 - **Phát giọng dịch** tiếng Việt qua thiết bị tự chọn (`setSinkId`).
-- Xuất transcript `.txt` / `.srt` / `.md`.
+- **Tự lưu transcript** mỗi phiên (cả 2 chiều) ra `Documents/LiveTranslate` — mặc định `.txt`, ghi liên tục nên không mất nội dung khi app tắt đột ngột.
+- Xuất transcript thủ công `.txt` / `.srt` / `.md`.
 - VAD gate (chỉ stream khi có tiếng nói → ~$0.023/phút audio gửi) + đồng hồ chi phí.
 - Tự reconnect kèm `sessionResumption` khi server `GoAway` — không mất lịch sử phụ đề.
 
@@ -43,31 +44,47 @@ Tải installer ở trang [**Releases**](https://github.com/xShiroeNguyenx/live-
 
 > App chưa ký số (self-signed) nên Windows SmartScreen có thể cảnh báo → **More info → Run anyway**.
 
-Mở app → dán **Gemini API key** → **Lưu** → **Bắt đầu dịch**. Overlay phụ đề nổi ở cạnh dưới màn hình (kéo để di chuyển, `Ctrl+Shift+O` bật/tắt click-xuyên).
+Mở app → tab **⚙ Cài đặt** → dán **Gemini API key** → **Lưu** → quay lại tab **Dịch** → **Bắt đầu dịch**. Overlay phụ đề nổi ở cạnh dưới màn hình (kéo để di chuyển, `Ctrl+Shift+O` bật/tắt click-xuyên).
 
-> **Tự cập nhật:** từ **0.2.2** trở đi app tự kiểm tra & tải bản mới từ GitHub Releases (electron-updater) rồi hiện banner *"Cài & khởi động lại"*. Bản cũ hơn 0.2.2 phải tải tay một lần cuối lên 0.2.2. Cũng có nút **"Kiểm tra cập nhật"** ở chân cửa sổ.
+Cửa sổ chia 2 tab:
+- **Dịch** — chỉ những gì cần trong lúc họp: bật/tắt 2 chiều, đồng hồ đo, phụ đề, nút giữ-để-nói. Cảnh báo hiển thị ngắn gọn kèm nút **"Sửa →"** nhảy sang Cài đặt.
+- **⚙ Cài đặt** — API key, thiết bị âm thanh, ngưỡng VAD, chiều đi, tự lưu transcript, overlay, kiểm tra cập nhật.
+
+> **Tự cập nhật:** từ **0.2.2** trở đi app tự kiểm tra & tải bản mới từ GitHub Releases (electron-updater) rồi hiện banner *"Cài & khởi động lại"*. Bản cũ hơn 0.2.2 phải tải tay một lần cuối lên 0.2.2. Cũng có nút **"Kiểm tra cập nhật"** ở mục **Cài đặt → Khác**.
 
 ---
 
 ## Hướng dẫn dùng nhanh
 
 ### 1. Chiều về cơ bản (nghe loa)
-Bắt đầu dịch là có phụ đề. Muốn nghe giọng Việt thì bật **"Phát audio dịch"** và chọn thiết bị **không có dấu ⚠** (tránh thu ngược).
+Bắt đầu dịch là có phụ đề. Muốn nghe giọng Việt thì vào **Cài đặt → Chiều về**, bật **"Phát giọng dịch"** và chọn thiết bị **không có dấu ⚠** (tránh thu ngược).
 
 ### 2. Nghe cả meeting + giọng dịch qua tai nghe, im lặng tuyệt đối với người xung quanh
-Cần VB-Cable. Card **Âm thanh**:
+Cần VB-Cable. **Cài đặt → Chiều về**:
 - 🎧 **Nghe meeting** → `CABLE Input (VB-Audio Virtual Cable)`
 - 🔊 **Giọng dịch** → tai nghe của bạn
-- Bật **"Phát audio dịch"** + **"Nghe cả meeting qua thiết bị giọng dịch"**
+- Bật **"Phát giọng dịch"** + **"Nghe cả meeting qua thiết bị giọng dịch"**
 
 → Meeting đi vào cable im lặng; app thu cable để dịch và phát lại CẢ meeting lẫn giọng Việt vào tai nghe.
 
-### 3. Chiều đi — nói vào meeting (panel "Nói vào meeting")
-Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audio Virtual Cable)`**. Trong app:
+### 3. Chiều đi — nói vào meeting
+Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audio Virtual Cable)`**. Trong app, **Cài đặt → Chiều đi**:
 - 🎙 **Micro** → micro thật · 📤 **Phát vào** → `CABLE Input` (✓ mic ảo)
-- Chọn ngôn ngữ đích + chế độ PTT → **Bật chiều đi** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
+- Chọn ngôn ngữ đích + chế độ PTT
+
+Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
 
 > Khuyến nghị đeo tai nghe khi bật chiều đi để mic không hút tiếng từ loa (tránh dịch nhầm tiếng meeting bơm ngược).
+
+### 4. Tự lưu transcript
+Bật sẵn mặc định. Mỗi lần **Bắt đầu dịch** / **Bật chiều đi** tạo 1 file mới đặt tên theo giờ bắt đầu:
+
+```
+Documents\LiveTranslate\2026-10-13_14-30-05_chieu-ve.txt
+Documents\LiveTranslate\2026-10-13_14-31-12_chieu-di.txt
+```
+
+File được ghi lại liên tục (~1,5 giây/lần, ghi file tạm rồi đổi tên nên không bao giờ hỏng) và chốt ngay khi Dừng / thoát app. Đổi định dạng (`.txt` / `.md` / `.srt`), thư mục lưu, hoặc mở thư mục ở **Cài đặt → Tự lưu transcript**. Đổi định dạng giữa phiên chỉ áp dụng từ phiên sau.
 
 ---
 
@@ -77,7 +94,7 @@ Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audi
 npm install
 npm run dev          # chạy dev (HMR)
 npm run typecheck    # kiểm tra TypeScript (strict)
-npm test             # unit tests (VAD gate, subtitle store, WAV, state machine, PTT)
+npm test             # unit tests (VAD gate, subtitle store, autosave, WAV, state machine, PTT)
 npm run build        # build production vào out/
 npm run dist         # đóng gói installer NSIS vào release/
 npm run echo-test -- <file.wav> [vi]   # test Gemini không cần UI (cần GEMINI_API_KEY)
@@ -98,16 +115,18 @@ GitHub Actions ([.github/workflows](.github/workflows)):
 **Ra bản mới (copy-paste, chạy local):**
 
 ```powershell
-# 1. Sửa "version" trong package.json (vd 0.2.2) — tag PHẢI khớp version
-# 2. Commit + tag + push
+# 1. Nâng version (sửa package.json + package-lock.json, không tự commit/tag)
+npm version 0.3.0 --no-git-tag-version
+# 2. Ghi thay đổi vào CHANGELOG.md
+# 3. Commit + tag + push — tag PHẢI khớp version
 git add -A
-git commit -m "release: v0.2.2"
-git tag v0.2.2
+git commit -m "release: v0.3.0"
+git tag v0.3.0
 git push origin main
-git push origin v0.2.2
+git push origin v0.3.0
 ```
 
-Vài phút sau, installer xuất hiện ở trang Releases.
+Vài phút sau, installer xuất hiện ở trang Releases. Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -126,10 +145,10 @@ src/
 ├─ main/             # Electron main: session manager, Gemini client, VAD, settings
 │  ├─ audio/         #   windows-default-device.ts — đổi thiết bị mặc định qua IPolicyConfig
 │  ├─ gemini/        #   client.ts (SDK) + raw-ws-client.ts (fallback) + session-manager.ts
-│  └─ subtitles/     #   store.ts — ghép cặp transcript, export txt/srt/md
+│  └─ subtitles/     #   store.ts — ghép cặp transcript, export txt/srt/md · autosave.ts — tự lưu mỗi phiên
 ├─ preload/          # 3 preload tối thiểu (control / overlay / engine)
 ├─ renderer/
-│  ├─ control/       # cửa sổ điều khiển + panel "Nói vào meeting" (React)
+│  ├─ control/       # cửa sổ điều khiển 2 tab Dịch / Cài đặt (React) + widgets dùng chung
 │  ├─ overlay/       # phụ đề luôn-nổi trong suốt
 │  └─ engine/        # cửa sổ ẩn: loopback + mic capture (AudioWorklet) + phát 24kHz / CABLE
 └─ shared/           # types + IPC contract + constants

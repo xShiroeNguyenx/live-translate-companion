@@ -1,14 +1,8 @@
 import { useState } from 'react'
 import type { OutgoingMode } from '../../shared/types'
 import { useControlStore } from './store'
-import {
-  dbToMeterPercent,
-  formatDuration,
-  isVirtualCable,
-  STATE_COLORS,
-  STATE_LABELS,
-  useStickToBottom
-} from './ui-helpers'
+import { formatDuration, isVirtualCable, STATE_COLORS, STATE_LABELS } from './ui-helpers'
+import { LevelMeter, SegmentList, VadSlider, Warn } from './widgets'
 
 const TARGET_OPTIONS: Array<{ code: string; label: string }> = [
   { code: 'ja', label: 'Tiếng Nhật' },
@@ -17,21 +11,13 @@ const TARGET_OPTIONS: Array<{ code: string; label: string }> = [
   { code: 'zh', label: 'Tiếng Trung' }
 ]
 
-export function OutgoingPanel(): React.JSX.Element {
+// Tab "Dịch": bật/tắt chiều đi, PTT, transcript
+export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
   const api = window.controlApi
-  const {
-    settings,
-    inputDevices,
-    outputDevices,
-    outgoing,
-    outgoingMetrics,
-    outgoingSegments,
-    outgoingSinkState,
-    patchSettings
-  } = useControlStore()
+  const { settings, outgoing, outgoingMetrics, outgoingSegments, outgoingSinkState } =
+    useControlStore()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const transcript = useStickToBottom(outgoingSegments)
 
   if (!api || !settings) return <></>
 
@@ -42,7 +28,9 @@ export function OutgoingPanel(): React.JSX.Element {
   // chiều đi nguy hiểm nếu KHÔNG phải mic ảo → giọng dịch phát ra loa thật cho cả phòng nghe
   const notVirtual = running && sinkLabel !== '' && !isVirtualCable(sinkLabel)
   const sinkError = running && outgoingSinkState && !outgoingSinkState.ok ? outgoingSinkState.error : null
-  const hasCable = outputDevices.some((d) => isVirtualCable(d.label))
+  const targetLabel =
+    TARGET_OPTIONS.find((o) => o.code === settings.outgoingTargetLanguage)?.label ??
+    settings.outgoingTargetLanguage
 
   const toggle = async (): Promise<void> => {
     setBusy(true)
@@ -62,29 +50,23 @@ export function OutgoingPanel(): React.JSX.Element {
     if (running && isPtt) void api.setPushToTalk(active)
   }
 
-  const meterPercent = dbToMeterPercent(outgoingMetrics.rmsDb)
-  const thresholdPercent = dbToMeterPercent(settings.outgoingVadThresholdDb)
-
   return (
     <section className="card">
-      <div className="header">
+      <div className="card-head">
         <span className="led" style={{ background: STATE_COLORS[outgoing.state] }} />
-        <h2 style={{ flex: 1 }}>Nói vào meeting (chiều đi)</h2>
+        <h2>Chiều đi · Việt → {targetLabel}</h2>
         <span className="state-label">{STATE_LABELS[outgoing.state]}</span>
         {outgoing.usingFallbackClient && <span className="badge">raw-ws</span>}
       </div>
 
       {error && <div className="alert error">{error}</div>}
       {sinkError && (
-        <div className="alert warn">
-          ⚠ Không route được giọng dịch tới thiết bị đã chọn ({sinkError}). Hãy chọn lại “Phát vào”.
-        </div>
+        <Warn onFix={onOpenSettings}>Không route được tới thiết bị “Phát vào” ({sinkError}).</Warn>
       )}
       {notVirtual && (
-        <div className="alert warn">
-          ⚠ Giọng dịch đang phát ra “{sinkLabel}” — KHÔNG phải mic ảo, cả phòng sẽ nghe thấy. Hãy
-          chọn “CABLE Input” ở mục “Phát vào”.
-        </div>
+        <Warn onFix={onOpenSettings}>
+          Đang phát ra “{sinkLabel}” — không phải mic ảo, cả phòng sẽ nghe thấy.
+        </Warn>
       )}
 
       <div className="row">
@@ -93,7 +75,7 @@ export function OutgoingPanel(): React.JSX.Element {
           onClick={() => void toggle()}
           disabled={busy}
         >
-          {running ? '■ Tắt chiều đi' : '▶ Bật chiều đi'}
+          {running ? '■ Tắt' : '▶ Bật chiều đi'}
         </button>
         <div className="metrics">
           <span>⏱ {formatDuration(outgoingMetrics.sessionSeconds)}</span>
@@ -103,6 +85,38 @@ export function OutgoingPanel(): React.JSX.Element {
         </div>
       </div>
 
+      {isPtt ? (
+        <button
+          className={`ptt-btn ${talking ? 'talking' : ''}`}
+          disabled={!running}
+          title="Hoặc nhấn Ctrl+Space (bật/tắt) khi đang ở cửa sổ meeting"
+          onPointerDown={() => press(true)}
+          onPointerUp={() => press(false)}
+          onPointerLeave={() => press(false)}
+        >
+          {talking ? '🔴 Đang nói… (thả ra để gửi)' : '🎤 Giữ để nói · Ctrl+Space'}
+        </button>
+      ) : (
+        <LevelMeter rmsDb={outgoingMetrics.rmsDb} thresholdDb={settings.outgoingVadThresholdDb} />
+      )}
+
+      <SegmentList segments={outgoingSegments} placeholder="Chưa nói gì…" className="outgoing" />
+    </section>
+  )
+}
+
+// Tab "Cài đặt": thiết bị, ngôn ngữ, chế độ của chiều đi
+export function OutgoingSettings(): React.JSX.Element {
+  const { settings, inputDevices, outputDevices, outgoing, outgoingMetrics, patchSettings } =
+    useControlStore()
+  if (!settings) return <></>
+
+  const running = !['idle', 'error'].includes(outgoing.state)
+  const hasCable = outputDevices.some((d) => isVirtualCable(d.label))
+
+  return (
+    <section className="card">
+      <h2>Chiều đi (nói vào meeting)</h2>
       <div className="row">
         <span className="field-label">🎙 Micro</span>
         <select
@@ -122,7 +136,6 @@ export function OutgoingPanel(): React.JSX.Element {
           ))}
         </select>
       </div>
-
       <div className="row">
         <span className="field-label">📤 Phát vào</span>
         <select
@@ -143,11 +156,8 @@ export function OutgoingPanel(): React.JSX.Element {
             ))}
         </select>
       </div>
-
-      <div className="row wrap">
-        <label className="field-label" style={{ width: 'auto' }}>
-          🌐 Dịch sang
-        </label>
+      <div className="row">
+        <span className="field-label">🌐 Dịch sang</span>
         <select
           value={settings.outgoingTargetLanguage}
           disabled={running}
@@ -159,9 +169,6 @@ export function OutgoingPanel(): React.JSX.Element {
             </option>
           ))}
         </select>
-        <label className="field-label" style={{ width: 'auto' }}>
-          Chế độ
-        </label>
         <select
           value={settings.outgoingMode}
           onChange={(e) => void patchSettings({ outgoingMode: e.target.value as OutgoingMode })}
@@ -170,59 +177,20 @@ export function OutgoingPanel(): React.JSX.Element {
           <option value="vad">Tự động (VAD)</option>
         </select>
       </div>
-
-      {isPtt ? (
-        <div className="row">
-          <button
-            className={`ptt-btn ${talking ? 'talking' : ''}`}
-            disabled={!running}
-            onPointerDown={() => press(true)}
-            onPointerUp={() => press(false)}
-            onPointerLeave={() => press(false)}
-          >
-            {talking ? '🔴 Đang nói… (thả ra để gửi)' : '🎤 Giữ để nói'}
-          </button>
-          <span className="hint" style={{ flex: 1 }}>
-            Hoặc nhấn Ctrl+Space (bật/tắt) khi đang ở cửa sổ meeting.
-          </span>
-        </div>
-      ) : (
-        <div className="row">
-          <label className="slider-label">
-            Ngưỡng VAD micro: {settings.outgoingVadThresholdDb} dB
-            <div className="meter-wrap">
-              <div className="meter-bar" style={{ width: `${meterPercent}%` }} />
-              <div className="meter-threshold" style={{ left: `${thresholdPercent}%` }} />
-            </div>
-            <input
-              type="range"
-              min={-80}
-              max={-20}
-              value={settings.outgoingVadThresholdDb}
-              onChange={(e) =>
-                void patchSettings({ outgoingVadThresholdDb: Number(e.target.value) })
-              }
-            />
-          </label>
-        </div>
+      {settings.outgoingMode === 'vad' && (
+        <VadSlider
+          label="Ngưỡng VAD micro"
+          rmsDb={outgoingMetrics.rmsDb}
+          value={settings.outgoingVadThresholdDb}
+          onChange={(db) => void patchSettings({ outgoingVadThresholdDb: db })}
+        />
       )}
-
       {!hasCable && (
         <p className="hint">
           Chưa thấy “CABLE Input”. Cài VB-Audio Virtual Cable (vb-audio.com/Cable, miễn phí, cần
           restart), rồi trong Meet/Zoom chọn Micro = “CABLE Output (VB-Audio Virtual Cable)”.
         </p>
       )}
-
-      <div className="subtitle-list outgoing" ref={transcript.ref} onScroll={transcript.onScroll}>
-        {outgoingSegments.length === 0 && <p className="placeholder">Chưa nói gì…</p>}
-        {outgoingSegments.map((seg) => (
-          <div key={seg.id} className={`segment ${seg.target.final ? 'final' : 'partial'}`}>
-            {seg.source.text && <p className="src">{seg.source.text}</p>}
-            {seg.target.text && <p className="tgt">{seg.target.text}</p>}
-          </div>
-        ))}
-      </div>
     </section>
   )
 }

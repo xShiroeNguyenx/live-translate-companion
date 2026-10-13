@@ -17,6 +17,7 @@
 | M5 playback | ✅ | typecheck + build | Test chống feedback loa/tai nghe |
 | M6 hardening + ship | ✅ | test reconnect/GoAway/stale-close | Soak test 60 phút + cài installer máy sạch |
 | M7 chiều đi VI→JA | ✅ | 3 test PTT + 2-instance | Meet 2 tài khoản: bên kia chỉ nghe tiếng Nhật |
+| v0.3 tự lưu + UI 2 tab | ✅ | 5 test autosave | Kill app giữa phiên → file vẫn còn nội dung |
 
 **Khác biệt so với thiết kế ban đầu (quyết định lúc triển khai):**
 - SDK `@google/genai` 2.8.0 **đã có sẵn** `translationConfig` trong `LiveConnectConfig` (mục 2 lo SDK chưa kịp hỗ trợ — không xảy ra). SDK vẫn là client chính, raw-ws là fallback runtime tự động.
@@ -25,6 +26,7 @@
 - Bật capture qua `webContents.executeJavaScript(..., userGesture=true)` thay vì IPC event — né yêu cầu user-activation của `getDisplayMedia`.
 - Sửa race: close event đến muộn của kết nối cũ được nhận diện qua danh tính session (box) để không xoá session mới sau khi rotate.
 - **Bổ sung ngoài plan:** tự ngắt segment phụ đề theo dấu câu của bản dịch (≥50 ký tự, trần 250) để tránh "tường chữ" khi người nói liên tục — lợi cho cả panel, overlay lẫn export `.srt`; icon app (SVG → PNG render bằng Electron, `scripts/render-icon.mjs`); overlay giữ 50 segment lịch sử, cuộn lại được khi không click-through.
+- **v0.3.0:** cửa sổ Control tách 2 tab **Dịch** / **Cài đặt** (gom mọi setting, cảnh báo rút gọn kèm nút "Sửa →"); `TranscriptAutoSaver` (`main/subtitles/autosave.ts`) tự lưu mỗi phiên của cả 2 chiều — ghi lại toàn bộ phiên sau debounce 1,5s (tmp → rename), flush khi phiên về idle/error và `before-quit`; IPC mới `autosave:getDir/pickDir/openDir`.
 
 ## 1. Bối cảnh & Mục tiêu
 

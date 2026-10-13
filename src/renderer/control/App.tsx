@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ExportFormat } from '../../shared/types'
-import { OutgoingPanel } from './OutgoingPanel'
+import { OutgoingPanel, OutgoingSettings } from './OutgoingPanel'
 import { useControlStore } from './store'
-import {
-  dbToMeterPercent,
-  formatDuration,
-  isDefaultDevice,
-  STATE_COLORS,
-  STATE_LABELS,
-  useStickToBottom
-} from './ui-helpers'
+import { formatDuration, isDefaultDevice, STATE_COLORS, STATE_LABELS } from './ui-helpers'
+import { LevelMeter, SegmentList, VadSlider, Warn } from './widgets'
+
+type Tab = 'main' | 'settings'
 
 export function App(): React.JSX.Element {
   const api = window.controlApi
@@ -29,13 +25,18 @@ export function App(): React.JSX.Element {
     setHasKey,
     setWindowsDefault
   } = useControlStore()
+  const [tab, setTab] = useState<Tab>('main')
   const [keyInput, setKeyInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [changingDefault, setChangingDefault] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const subtitles = useStickToBottom(segments)
+
+  const [autoSaveDir, setAutoSaveDir] = useState('')
 
   useEffect(() => init(), [init])
+  useEffect(() => {
+    void api?.getAutoSaveDir().then(setAutoSaveDir)
+  }, [api, settings?.autoSaveDir])
 
   if (!api) return <div className="app">Lỗi: preload chưa nạp được.</div>
   if (!settings) return <div className="app">Đang tải…</div>
@@ -49,6 +50,7 @@ export function App(): React.JSX.Element {
   const feedbackRisk = settings.playbackEnabled && sinkCaptured
   const sinkError = settings.playbackEnabled && sinkState && !sinkState.ok ? sinkState.error : null
   const hasVirtualCable = windowsOutputs.some((d) => /CABLE Input/i.test(d.name))
+  const openSettings = (): void => setTab('settings')
 
   const saveKey = async (): Promise<void> => {
     if (!keyInput.trim()) return
@@ -107,31 +109,35 @@ export function App(): React.JSX.Element {
     }
   }
 
-  const meterPercent = dbToMeterPercent(metrics.rmsDb)
-  const thresholdPercent = dbToMeterPercent(settings.vadThresholdDb)
-
   return (
     <div className="app">
       <header className="header">
         <span className="led" style={{ background: STATE_COLORS[session.state] }} />
-        <h1>Live Translate Companion</h1>
-        <span className="state-label">{STATE_LABELS[session.state]}</span>
-        {session.usingFallbackClient && <span className="badge">raw-ws</span>}
+        <h1>Live Translate</h1>
+        <nav className="tabs">
+          <button className={tab === 'main' ? 'active' : ''} onClick={() => setTab('main')}>
+            Dịch
+          </button>
+          <button className={tab === 'settings' ? 'active' : ''} onClick={openSettings}>
+            ⚙ Cài đặt
+          </button>
+        </nav>
       </header>
 
       {session.state === 'error' && session.error && (
         <div className="alert error">{session.error}</div>
       )}
-      {notice && <div className="alert info">{notice}</div>}
-      {sinkError && (
-        <div className="alert warn">
-          ⚠ Không route được giọng dịch tới thiết bị đã chọn ({sinkError}) — tạm phát ra thiết bị
-          mặc định. Hãy chọn lại thiết bị trong danh sách.
+      {notice && (
+        <div className="alert info compact">
+          <span>{notice}</span>
+          <button className="link-btn" onClick={() => setNotice(null)}>
+            ✕
+          </button>
         </div>
       )}
       {update.state === 'downloaded' && (
-        <div className="alert info update-banner">
-          <span>✅ Đã tải bản mới {update.version}. Khởi động lại để cài.</span>
+        <div className="alert info compact">
+          <span>✅ Đã tải bản mới {update.version}.</span>
           <button className="btn-start" onClick={() => void api.installUpdate()}>
             Cài &amp; khởi động lại
           </button>
@@ -143,234 +149,278 @@ export function App(): React.JSX.Element {
           {update.percent !== undefined ? ` ${update.percent}%` : ''}
         </div>
       )}
-      {update.state === 'error' && (
-        <div className="alert warn">⚠ Lỗi kiểm tra cập nhật: {update.error}</div>
+      {update.state === 'error' && <Warn>Lỗi kiểm tra cập nhật: {update.error}</Warn>}
+      {!hasKey && <Warn onFix={openSettings}>Chưa có Gemini API key.</Warn>}
+      {sinkError && (
+        <Warn onFix={openSettings}>
+          Không route được giọng dịch tới thiết bị đã chọn — đang phát ra thiết bị mặc định.
+        </Warn>
       )}
       {feedbackRisk && (
-        <div className="alert warn">
-          ⚠ Giọng dịch đang phát vào đúng thiết bị mà loopback thu — app sẽ tạm ngắt thu trong lúc
-          phát để tránh vọng, nên có thể sót lời thoại. Tốt nhất hãy chọn thiết bị khác (ví dụ loa
-          laptop) ở mục “Phát giọng dịch”.
-        </div>
+        <Warn onFix={openSettings}>
+          Giọng dịch phát vào đúng thiết bị đang bị thu — có thể sót lời. Nên chọn thiết bị khác.
+        </Warn>
       )}
 
-      <section className="card">
-        <h2>Gemini API key</h2>
-        <div className="row">
-          <input
-            type="password"
-            placeholder={hasKey ? 'Đã lưu ✓ — nhập để thay key mới' : 'Dán API key từ Google AI Studio'}
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-          />
-          <button onClick={() => void saveKey()} disabled={!keyInput.trim()}>
-            Lưu
-          </button>
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>Phiên dịch</h2>
-        <div className="row">
-          <button
-            className={running ? 'btn-stop' : 'btn-start'}
-            onClick={() => void toggleSession()}
-            disabled={busy || (!hasKey && !running)}
-          >
-            {running ? '■ Dừng' : '▶ Bắt đầu dịch'}
-          </button>
-          <div className="metrics">
-            <span>⏱ {formatDuration(metrics.sessionSeconds)}</span>
-            <span>📤 {metrics.secondsSent.toFixed(0)}s đã gửi</span>
-            <span>≈ ${metrics.estimatedCostUsd.toFixed(3)}</span>
-            {metrics.reconnects > 0 && <span>🔁 {metrics.reconnects}</span>}
-          </div>
-        </div>
-        <div className="row">
-          <label className="slider-label">
-            Ngưỡng VAD: {settings.vadThresholdDb} dB
-            <div className="meter-wrap">
-              <div className="meter-bar" style={{ width: `${meterPercent}%` }} />
-              <div className="meter-threshold" style={{ left: `${thresholdPercent}%` }} />
+      {tab === 'main' ? (
+        <>
+          <section className="card">
+            <div className="card-head">
+              <h2>Chiều về · meeting → Việt</h2>
+              <span className="state-label">{STATE_LABELS[session.state]}</span>
+              {session.usingFallbackClient && <span className="badge">raw-ws</span>}
             </div>
-            <input
-              type="range"
-              min={-80}
-              max={-20}
+            <div className="row">
+              <button
+                className={running ? 'btn-stop' : 'btn-start'}
+                onClick={() => void toggleSession()}
+                disabled={busy || (!hasKey && !running)}
+              >
+                {running ? '■ Dừng' : '▶ Bắt đầu dịch'}
+              </button>
+              <div className="metrics">
+                <span>⏱ {formatDuration(metrics.sessionSeconds)}</span>
+                <span>📤 {metrics.secondsSent.toFixed(0)}s</span>
+                <span>≈ ${metrics.estimatedCostUsd.toFixed(3)}</span>
+                {metrics.reconnects > 0 && <span>🔁 {metrics.reconnects}</span>}
+              </div>
+            </div>
+            <LevelMeter rmsDb={metrics.rmsDb} thresholdDb={settings.vadThresholdDb} />
+            <SegmentList segments={segments} placeholder="Chưa có nội dung…" />
+            <div className="row export-row">
+              <span className="hint">Xuất:</span>
+              <button className="small" onClick={() => void exportTranscript('txt')}>
+                .txt
+              </button>
+              <button className="small" onClick={() => void exportTranscript('srt')}>
+                .srt
+              </button>
+              <button className="small" onClick={() => void exportTranscript('md')}>
+                .md
+              </button>
+            </div>
+          </section>
+
+          <OutgoingPanel onOpenSettings={openSettings} />
+        </>
+      ) : (
+        <>
+          <section className="card">
+            <h2>Gemini API key</h2>
+            <div className="row">
+              <input
+                type="password"
+                placeholder={
+                  hasKey ? 'Đã lưu ✓ — nhập để thay key mới' : 'Dán API key từ Google AI Studio'
+                }
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+              />
+              <button onClick={() => void saveKey()} disabled={!keyInput.trim()}>
+                Lưu
+              </button>
+            </div>
+          </section>
+
+          <section className="card">
+            <h2>Chiều về (nghe meeting)</h2>
+            <div className="row">
+              <span
+                className="field-label"
+                title="Đổi thiết bị mặc định của Windows — meeting phát ra đây và app thu & dịch chính luồng này"
+              >
+                🎧 Nghe meeting
+              </span>
+              <select
+                value={windowsOutputs.find((d) => d.isDefault)?.id ?? ''}
+                disabled={changingDefault || windowsOutputs.length === 0}
+                onChange={(e) => void changeMeetingDevice(e.target.value)}
+              >
+                {windowsOutputs.length === 0 && (
+                  <option value="">(Không đọc được danh sách)</option>
+                )}
+                {windowsOutputs.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="row">
+              <span className="field-label">🔊 Giọng dịch</span>
+              <select
+                value={settings.playbackDeviceId}
+                onChange={(e) => {
+                  const deviceId = e.target.value
+                  const label = outputDevices.find((d) => d.deviceId === deviceId)?.label ?? ''
+                  void patchSettings({ playbackDeviceId: deviceId, playbackDeviceLabel: label })
+                }}
+              >
+                <option value="">(Thiết bị mặc định — không khuyến nghị)</option>
+                {outputDevices
+                  .filter((d) => d.deviceId !== '')
+                  .map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.isCaptured ? `${d.label} — ⚠ bị thu ngược` : d.label}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="row wrap">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.playbackEnabled}
+                  onChange={(e) => void patchSettings({ playbackEnabled: e.target.checked })}
+                />
+                Phát giọng dịch
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.monitorEnabled}
+                  onChange={(e) => void patchSettings({ monitorEnabled: e.target.checked })}
+                />
+                Nghe cả meeting qua thiết bị giọng dịch
+              </label>
+            </div>
+            <VadSlider
+              label="Ngưỡng VAD"
+              rmsDb={metrics.rmsDb}
               value={settings.vadThresholdDb}
-              onChange={(e) => void patchSettings({ vadThresholdDb: Number(e.target.value) })}
+              onChange={(db) => void patchSettings({ vadThresholdDb: db })}
             />
-          </label>
-        </div>
-      </section>
+            {settings.monitorEnabled && sinkCaptured && (
+              <p className="hint">
+                ⚠ Monitor đang tạm tắt: thiết bị giọng dịch trùng với thiết bị bị thu.
+              </p>
+            )}
+            {hasVirtualCable ? (
+              <p className="hint">
+                Im lặng tuyệt đối: “Nghe meeting” → CABLE Input, “Giọng dịch” → tai nghe, bật cả 2
+                ô trên.
+              </p>
+            ) : (
+              settings.monitorEnabled && (
+                <p className="hint">
+                  Mẹo: cài VB-Audio Virtual Cable (vb-audio.com/Cable) rồi đặt “Nghe meeting” →
+                  CABLE Input để meeting im lặng với người xung quanh.
+                </p>
+              )
+            )}
+          </section>
 
-      <section className="card">
-        <h2>Âm thanh</h2>
-        <div className="row">
-          <span className="field-label">🎧 Nghe meeting</span>
-          <select
-            value={windowsOutputs.find((d) => d.isDefault)?.id ?? ''}
-            disabled={changingDefault || windowsOutputs.length === 0}
-            onChange={(e) => void changeMeetingDevice(e.target.value)}
-          >
-            {windowsOutputs.length === 0 && <option value="">(Không đọc được danh sách)</option>}
-            {windowsOutputs.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="hint">
-          Đổi thiết bị mặc định của Windows — meeting phát ra đây và app thu &amp; dịch chính luồng
-          này.
-        </p>
-        <div className="row">
-          <span className="field-label">🔊 Giọng dịch</span>
-          <select
-            value={settings.playbackDeviceId}
-            onChange={(e) => {
-              const deviceId = e.target.value
-              const label = outputDevices.find((d) => d.deviceId === deviceId)?.label ?? ''
-              void patchSettings({ playbackDeviceId: deviceId, playbackDeviceLabel: label })
-            }}
-          >
-            <option value="">(Thiết bị mặc định — không khuyến nghị)</option>
-            {outputDevices
-              .filter((d) => d.deviceId !== '')
-              .map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.isCaptured ? `${d.label} — ⚠ bị thu ngược` : d.label}
-                </option>
-              ))}
-          </select>
-        </div>
-        <div className="row">
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.playbackEnabled}
-              onChange={(e) => void patchSettings({ playbackEnabled: e.target.checked })}
-            />
-            Bật phát audio dịch (tiếng Việt)
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.monitorEnabled}
-              onChange={(e) => void patchSettings({ monitorEnabled: e.target.checked })}
-            />
-            Nghe cả meeting qua thiết bị giọng dịch
-          </label>
-        </div>
-        {settings.monitorEnabled && sinkCaptured && (
-          <p className="hint">
-            ⚠ Monitor đang tạm tắt: thiết bị giọng dịch trùng với thiết bị bị thu — chọn thiết bị
-            khác để nghe meeting qua app.
-          </p>
-        )}
-        {hasVirtualCable ? (
-          <p className="hint">
-            Chế độ im lặng tuyệt đối: “Nghe meeting” → CABLE Input, “Giọng dịch” → tai nghe, bật cả
-            2 ô trên. Meeting không phát ra ngoài, tai nghe nhận cả meeting lẫn giọng dịch.
-          </p>
-        ) : (
-          settings.monitorEnabled && (
-            <p className="hint">
-              Mẹo: cài VB-Audio Virtual Cable (vb-audio.com/Cable, miễn phí) rồi đặt “Nghe meeting”
-              → CABLE Input để meeting im lặng tuyệt đối với người xung quanh.
-            </p>
-          )
-        )}
-      </section>
+          <OutgoingSettings />
 
-      <OutgoingPanel />
-
-      <section className="card">
-        <h2>Overlay phụ đề</h2>
-        <div className="row wrap">
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.overlayVisible}
-              onChange={(e) => void api.setOverlayVisible(e.target.checked)}
-            />
-            Hiện overlay
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={settings.overlayClickThrough}
-              onChange={(e) => void api.setOverlayClickThrough(e.target.checked)}
-            />
-            Click xuyên qua (Ctrl+Shift+O)
-          </label>
-        </div>
-        <div className="row wrap">
-          <label className="slider-label small">
-            Cỡ chữ: {settings.overlayFontSize}px
-            <input
-              type="range"
-              min={14}
-              max={40}
-              value={settings.overlayFontSize}
-              onChange={(e) => void patchSettings({ overlayFontSize: Number(e.target.value) })}
-            />
-          </label>
-          <label className="slider-label small">
-            Độ mờ nền: {Math.round(settings.overlayOpacity * 100)}%
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(settings.overlayOpacity * 100)}
-              onChange={(e) => void patchSettings({ overlayOpacity: Number(e.target.value) / 100 })}
-            />
-          </label>
-        </div>
-      </section>
-
-      <section className="card subtitles">
-        <h2>Phụ đề trực tiếp</h2>
-        <div className="subtitle-list" ref={subtitles.ref} onScroll={subtitles.onScroll}>
-          {segments.length === 0 && <p className="placeholder">Chưa có nội dung…</p>}
-          {segments.map((seg) => (
-            <div key={seg.id} className={`segment ${seg.target.final ? 'final' : 'partial'}`}>
-              {seg.source.text && <p className="src">{seg.source.text}</p>}
-              {seg.target.text && <p className="tgt">{seg.target.text}</p>}
+          <section className="card">
+            <h2>Tự lưu transcript</h2>
+            <div className="row wrap">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.autoSaveEnabled}
+                  onChange={(e) => void patchSettings({ autoSaveEnabled: e.target.checked })}
+                />
+                Tự lưu mỗi phiên (cả 2 chiều)
+              </label>
+              <select
+                className="narrow"
+                value={settings.autoSaveFormat}
+                disabled={!settings.autoSaveEnabled}
+                onChange={(e) => void patchSettings({ autoSaveFormat: e.target.value as ExportFormat })}
+              >
+                <option value="txt">.txt</option>
+                <option value="md">.md</option>
+                <option value="srt">.srt</option>
+              </select>
             </div>
-          ))}
-        </div>
-        <div className="row">
-          <button onClick={() => void exportTranscript('txt')}>Xuất .txt</button>
-          <button onClick={() => void exportTranscript('srt')}>Xuất .srt</button>
-          <button onClick={() => void exportTranscript('md')}>Xuất .md</button>
-        </div>
-      </section>
+            <div className="row">
+              <span className="path" title={autoSaveDir}>
+                📁 {autoSaveDir || '—'}
+              </span>
+              <button className="small" onClick={() => void api.pickAutoSaveDir()}>
+                Đổi…
+              </button>
+              <button className="small" onClick={() => void api.openAutoSaveDir()}>
+                Mở
+              </button>
+            </div>
+            <p className="hint">
+              Mỗi phiên 1 file (…_chieu-ve / …_chieu-di), ghi liên tục khi đang dịch nên không mất
+              nội dung nếu app bị tắt đột ngột.
+            </p>
+          </section>
 
-      <section className="card">
-        <h2>Kiểm tra (M1)</h2>
-        <div className="row">
-          <button onClick={() => void recordDebugWav()} disabled={busy}>
-            Thu 10s audio hệ thống → WAV
-          </button>
-        </div>
-      </section>
+          <section className="card">
+            <h2>Overlay phụ đề</h2>
+            <div className="row wrap">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.overlayVisible}
+                  onChange={(e) => void api.setOverlayVisible(e.target.checked)}
+                />
+                Hiện overlay
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.overlayClickThrough}
+                  onChange={(e) => void api.setOverlayClickThrough(e.target.checked)}
+                />
+                Click xuyên qua (Ctrl+Shift+O)
+              </label>
+            </div>
+            <div className="row wrap">
+              <label className="slider-label small">
+                Cỡ chữ: {settings.overlayFontSize}px
+                <input
+                  type="range"
+                  min={14}
+                  max={40}
+                  value={settings.overlayFontSize}
+                  onChange={(e) => void patchSettings({ overlayFontSize: Number(e.target.value) })}
+                />
+              </label>
+              <label className="slider-label small">
+                Độ mờ nền: {Math.round(settings.overlayOpacity * 100)}%
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(settings.overlayOpacity * 100)}
+                  onChange={(e) =>
+                    void patchSettings({ overlayOpacity: Number(e.target.value) / 100 })
+                  }
+                />
+              </label>
+            </div>
+          </section>
 
-      <footer className="app-footer">
-        <span>Phiên bản {appVersion || '—'}</span>
-        <button
-          className="link-btn"
-          disabled={update.state === 'checking' || update.state === 'downloading'}
-          onClick={() => void api.checkForUpdate()}
-        >
-          {update.state === 'checking'
-            ? 'Đang kiểm tra…'
-            : update.state === 'none'
-              ? 'Đã là bản mới nhất ✓'
-              : 'Kiểm tra cập nhật'}
-        </button>
-      </footer>
+          <section className="card">
+            <h2>Khác</h2>
+            <div className="row wrap">
+              <button onClick={() => void recordDebugWav()} disabled={busy}>
+                Thu thử 10s audio → WAV
+              </button>
+              <span className="hint" style={{ flex: 1, textAlign: 'right' }}>
+                Phiên bản {appVersion || '—'}
+              </span>
+              <button
+                className="link-btn"
+                disabled={update.state === 'checking' || update.state === 'downloading'}
+                onClick={() => void api.checkForUpdate()}
+              >
+                {update.state === 'checking'
+                  ? 'Đang kiểm tra…'
+                  : update.state === 'none'
+                    ? 'Đã là bản mới nhất ✓'
+                    : 'Kiểm tra cập nhật'}
+              </button>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   )
 }

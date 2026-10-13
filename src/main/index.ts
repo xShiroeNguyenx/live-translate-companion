@@ -10,6 +10,7 @@ import { SessionManager } from './gemini/session-manager'
 import { registerIpc } from './ipc'
 import { getApiKey } from './secrets'
 import { SettingsStore } from './settings'
+import { TranscriptAutoSaver, type AutoSaveConfig } from './subtitles/autosave'
 import { SubtitleStore } from './subtitles/store'
 import { initUpdater } from './updater'
 import {
@@ -44,7 +45,22 @@ if (gotLock) {
       }
     }
 
-    const store = new SubtitleStore((update) => broadcast(IPC.evSubtitleUpdate, update))
+    const getAutoSaveDir = (): string =>
+      settings.get().autoSaveDir || join(app.getPath('documents'), 'LiveTranslate')
+    const autoSaveConfig = (): AutoSaveConfig => {
+      const s = settings.get()
+      return { enabled: s.autoSaveEnabled, format: s.autoSaveFormat, dir: getAutoSaveDir() }
+    }
+
+    const store = new SubtitleStore((update) => {
+      broadcast(IPC.evSubtitleUpdate, update)
+      incomingSaver.onUpdate(update)
+    })
+    const incomingSaver = new TranscriptAutoSaver({
+      exportAs: (format) => store.export(format),
+      getConfig: autoSaveConfig,
+      suffix: 'chieu-ve'
+    })
 
     const sessions = new SessionManager([new SdkLiveClient(), new RawWsLiveClient()], store, {
       getApiKey: () => getApiKey(),
@@ -64,7 +80,10 @@ if (gotLock) {
       }
     })
 
-    sessions.on('state', (info) => broadcast(IPC.evSessionState, info))
+    sessions.on('state', (info) => {
+      broadcast(IPC.evSessionState, info)
+      if (info.state === 'idle' || info.state === 'error') incomingSaver.flush()
+    })
     sessions.on('metrics', (m) => {
       if (!control.isDestroyed()) control.webContents.send(IPC.evMetricsUpdate, m)
     })
@@ -73,7 +92,15 @@ if (gotLock) {
     const sendToControl = (channel: string, payload: unknown): void => {
       if (!control.isDestroyed()) control.webContents.send(channel, payload)
     }
-    const outgoingStore = new SubtitleStore((update) => sendToControl(IPC.evOutgoingSubtitle, update))
+    const outgoingStore = new SubtitleStore((update) => {
+      sendToControl(IPC.evOutgoingSubtitle, update)
+      outgoingSaver.onUpdate(update)
+    })
+    const outgoingSaver = new TranscriptAutoSaver({
+      exportAs: (format) => outgoingStore.export(format),
+      getConfig: autoSaveConfig,
+      suffix: 'chieu-di'
+    })
     const outgoing = new SessionManager([new SdkLiveClient(), new RawWsLiveClient()], outgoingStore, {
       getApiKey: () => getApiKey(),
       getTargetLanguage: () => settings.get().outgoingTargetLanguage,
@@ -149,7 +176,8 @@ if (gotLock) {
       }
     }
 
-    outgoing.on('state', () => {
+    outgoing.on('state', (info) => {
+      if (info.state === 'idle' || info.state === 'error') outgoingSaver.flush()
       sendOutgoingConfigIfChanged()
       syncPttShortcut()
     })
@@ -187,12 +215,19 @@ if (gotLock) {
       outgoing,
       debug,
       updater,
+      getAutoSaveDir,
       controlWindow: control,
       engineWindow: engine
     })
 
     globalShortcut.register(OVERLAY_TOGGLE_SHORTCUT, () => {
       settings.set({ overlayClickThrough: !settings.get().overlayClickThrough })
+    })
+
+    // thoát kiểu nào (cài update, Alt+F4…) cũng ghi nốt phần chưa lưu
+    app.on('before-quit', () => {
+      incomingSaver.flush()
+      outgoingSaver.flush()
     })
 
     control.on('closed', () => {

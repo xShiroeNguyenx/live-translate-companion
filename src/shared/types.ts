@@ -58,6 +58,10 @@ export interface AppSettings {
   overlayOpacity: number
   overlayClickThrough: boolean
   overlayVisible: boolean
+  // tự lưu transcript mỗi phiên (cả 2 chiều); autoSaveDir rỗng = Documents/LiveTranslate
+  autoSaveEnabled: boolean
+  autoSaveFormat: ExportFormat
+  autoSaveDir: string
 }
 
 export interface PlaybackConfig {

@@ -34,6 +34,9 @@ export const IPC = {
   appGetVersion: 'app:getVersion',
   updateCheck: 'update:check',
   updateInstall: 'update:install',
+  autoSaveGetDir: 'autosave:getDir',
+  autoSavePickDir: 'autosave:pickDir',
+  autoSaveOpenDir: 'autosave:openDir',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -86,6 +89,10 @@ export interface ControlApi {
   getAppVersion(): Promise<string>
   checkForUpdate(): Promise<void>
   installUpdate(): Promise<void>
+  // thư mục tự lưu đã resolve (mặc định nếu setting rỗng)
+  getAutoSaveDir(): Promise<string>
+  pickAutoSaveDir(): Promise<string | null>
+  openAutoSaveDir(): Promise<void>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void

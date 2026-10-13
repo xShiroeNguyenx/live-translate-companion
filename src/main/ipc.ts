@@ -1,5 +1,5 @@
-import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
-import { writeFileSync } from 'node:fs'
+import { app, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { IPC } from '../shared/ipc-contract'
 import type { Updater } from './updater'
 import type {
@@ -27,6 +27,7 @@ export interface IpcContext {
   outgoing: SessionManager
   debug: DebugRecorder
   updater: Updater
+  getAutoSaveDir: () => string
   controlWindow: BrowserWindow
   engineWindow: BrowserWindow
 }
@@ -54,6 +55,23 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
   ipcMain.handle(IPC.updateCheck, () => ctx.updater.check())
   ipcMain.handle(IPC.updateInstall, () => ctx.updater.install())
+
+  ipcMain.handle(IPC.autoSaveGetDir, () => ctx.getAutoSaveDir())
+  ipcMain.handle(IPC.autoSavePickDir, async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(ctx.controlWindow, {
+      title: 'Chọn thư mục tự lưu transcript',
+      defaultPath: ctx.getAutoSaveDir(),
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (canceled || !filePaths[0]) return null
+    ctx.settings.set({ autoSaveDir: filePaths[0] })
+    return filePaths[0]
+  })
+  ipcMain.handle(IPC.autoSaveOpenDir, async () => {
+    const dir = ctx.getAutoSaveDir()
+    mkdirSync(dir, { recursive: true })
+    await shell.openPath(dir)
+  })
 
   ipcMain.handle(IPC.transcriptExport, async (_e, format: ExportFormat) => {
     const content = ctx.store.export(format)

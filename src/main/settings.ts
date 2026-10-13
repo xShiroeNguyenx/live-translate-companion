@@ -22,7 +22,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   overlayFontSize: 22,
   overlayOpacity: 0.85,
   overlayClickThrough: false,
-  overlayVisible: true
+  overlayVisible: true,
+  autoSaveEnabled: true,
+  autoSaveFormat: 'txt',
+  autoSaveDir: ''
 }
 
 export class SettingsStore extends EventEmitter {

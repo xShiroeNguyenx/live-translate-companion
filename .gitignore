@@ -6,3 +6,4 @@ release/
 capture-test.wav
 echo-out.wav
 *.local
+*.tsbuildinfo

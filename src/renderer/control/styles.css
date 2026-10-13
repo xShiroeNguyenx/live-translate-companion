@@ -11,17 +11,85 @@ body {
   font-size: 13px;
 }
 
+/* Scrollbar mảnh, tối, chỉ nổi lên khi hover */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a313b;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+.subtitle-list::-webkit-scrollbar {
+  width: 6px;
+}
+
 .app {
-  padding: 12px;
+  padding: 0 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111418;
+  padding: 8px 0 4px;
+}
+
+.tabs {
+  display: flex;
+  background: #0d1117;
+  border: 1px solid #2a313b;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.tabs button {
+  background: none;
+  border: none;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.tabs button.active,
+.tabs button.active:hover {
+  background: #2a313b;
+  color: #e5e7eb;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-head h2 {
+  flex: 1;
 }
 
 .header h1 {
@@ -76,10 +144,56 @@ body {
   background: #1a1f26;
   border: 1px solid #2a313b;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+.alert.compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  padding: 5px 10px;
+}
+
+.alert.compact button {
+  flex-shrink: 0;
+}
+
+.alert.compact .btn-start {
+  padding: 3px 10px;
+}
+
+.alert.warn .link-btn {
+  color: #fde68a;
+  font-weight: 600;
+}
+
+button.small {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+select.narrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.export-row {
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .card h2 {
@@ -181,8 +295,7 @@ button:disabled {
 }
 
 .ptt-btn {
-  flex: 1;
-  padding: 12px;
+  padding: 10px;
   font-weight: 600;
   font-size: 14px;
   background: #1e3a5f;
@@ -201,28 +314,7 @@ button:disabled {
 }
 
 .subtitle-list.outgoing {
-  height: 120px;
-}
-
-.update-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: space-between;
-}
-
-.update-banner button {
-  flex-shrink: 0;
-  padding: 4px 10px;
-}
-
-.app-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 4px 8px;
-  color: #6b7280;
-  font-size: 11px;
+  height: 90px;
 }
 
 .link-btn {
@@ -281,10 +373,6 @@ input[type='range'] {
   background: #ef4444;
 }
 
-.subtitles {
-  min-height: 180px;
-}
-
 .subtitle-list {
   height: 220px;
   overflow-y: auto;
@@ -299,7 +387,7 @@ input[type='range'] {
 .placeholder {
   color: #4b5563;
   text-align: center;
-  margin-top: 80px;
+  margin: auto 0;
 }
 
 .segment {
