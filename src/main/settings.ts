@@ -7,6 +7,11 @@ import {
   OUTGOING_DEFAULT_TARGET,
   VAD_DEFAULT_THRESHOLD_DB
 } from '../shared/constants'
+import {
+  DEFAULT_API_VERSION,
+  DEFAULT_LIVE_MODEL,
+  normalizeApiVersion
+} from '../shared/gemini-api'
 import type { AppSettings } from '../shared/types'
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -34,6 +39,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   highlightKeywords: '',
   autoSummary: true,
   summaryModel: DEFAULT_SUMMARY_MODEL,
+  apiVersion: DEFAULT_API_VERSION,
+  liveModel: DEFAULT_LIVE_MODEL,
   monthlyBudgetUsd: 0,
   minimizeToTray: true
 }
@@ -43,7 +50,8 @@ export class SettingsStore extends EventEmitter {
 
   constructor(private file: string = join(app.getPath('userData'), 'settings.json')) {
     super()
-    this.settings = { ...DEFAULT_SETTINGS, ...this.load() }
+    const loaded = { ...DEFAULT_SETTINGS, ...this.load() }
+    this.settings = { ...loaded, apiVersion: normalizeApiVersion(loaded.apiVersion) }
   }
 
   private load(): Partial<AppSettings> {
@@ -60,6 +68,7 @@ export class SettingsStore extends EventEmitter {
 
   set(patch: Partial<AppSettings>): AppSettings {
     this.settings = { ...this.settings, ...patch }
+    this.settings.apiVersion = normalizeApiVersion(this.settings.apiVersion)
     try {
       mkdirSync(dirname(this.file), { recursive: true })
       writeFileSync(this.file, JSON.stringify(this.settings, null, 2), 'utf-8')

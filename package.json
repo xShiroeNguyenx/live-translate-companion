@@ -1,6 +1,6 @@
 {
   "name": "live-translate-companion",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Desktop app dịch trực tiếp audio cuộc họp (Meet/Zoom) sang tiếng Việt bằng Gemini 3.5 Live Translate",
   "main": "out/main/index.js",
   "author": "NguyenKhanh",
@@ -19,7 +19,7 @@
     "echo-test": "tsx scripts/echo-test.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.8.0",
+    "@google/genai": "^2.31.0",
     "electron-updater": "^6.8.9",
     "ws": "^8.21.0"
   },

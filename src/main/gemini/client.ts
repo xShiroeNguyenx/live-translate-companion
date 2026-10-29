@@ -5,7 +5,11 @@ import {
   type LiveServerMessage,
   type Session
 } from '@google/genai'
-import { MODEL_ID } from '../../shared/constants'
+import {
+  normalizeApiVersion,
+  normalizeLiveModel,
+  type GeminiApiVersion
+} from '../../shared/gemini-api'
 
 export interface LiveServerEvent {
   inputTranscription?: string
@@ -27,6 +31,9 @@ export interface GeminiLiveCallbacks {
 export interface GeminiConnectOptions {
   apiKey: string
   targetLanguage: string
+  // bỏ trống = model / version mặc định (xem shared/gemini-api)
+  model?: string
+  apiVersion?: GeminiApiVersion
   resumptionHandle?: string
   // ngữ cảnh/thuật ngữ cuộc họp; model có thể từ chối → xem isSystemInstructionRejection
   systemInstruction?: string
@@ -136,9 +143,12 @@ export class SdkLiveClient implements GeminiLiveClient {
   readonly name = 'sdk' as const
 
   async connect(opts: GeminiConnectOptions): Promise<GeminiLiveSession> {
-    const ai = new GoogleGenAI({ apiKey: opts.apiKey, httpOptions: { apiVersion: 'v1beta' } })
+    const ai = new GoogleGenAI({
+      apiKey: opts.apiKey,
+      httpOptions: { apiVersion: normalizeApiVersion(opts.apiVersion) }
+    })
     const session: Session = await ai.live.connect({
-      model: MODEL_ID,
+      model: normalizeLiveModel(opts.model),
       config: buildLiveConnectConfig(
         opts.targetLanguage,
         opts.resumptionHandle,

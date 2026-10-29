@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
+import { normalizeApiVersion, type GeminiApiVersion } from '../../shared/gemini-api'
 import { languageLabel } from '../../shared/languages'
 import type { HistoryRecord, SubtitleSegment } from '../../shared/types'
 
@@ -70,8 +71,16 @@ export function buildSummaryPrompt(input: SummaryInput): string {
     .join('\n')
 }
 
-export async function generateSummary(apiKey: string, model: string, prompt: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey })
+export async function generateSummary(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  apiVersion?: GeminiApiVersion
+): Promise<string> {
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: { apiVersion: normalizeApiVersion(apiVersion) }
+  })
   const res = await ai.models.generateContent({
     model,
     contents: prompt,

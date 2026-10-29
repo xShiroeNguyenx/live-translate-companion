@@ -53,7 +53,12 @@ export class SummaryService extends EventEmitter {
     this.running.add(id)
     this.emitStatus({ id, state: 'running' })
     try {
-      const summary = await (this.deps.generate ?? generateSummary)(apiKey, s.summaryModel, prompt)
+      const summary = await (this.deps.generate ?? generateSummary)(
+        apiKey,
+        s.summaryModel,
+        prompt,
+        s.apiVersion
+      )
       const base = rec.transcriptFile
         ? rec.transcriptFile.replace(/\.[^./\\]+$/, '')
         : join(this.deps.fallbackDir(), id)

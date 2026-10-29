@@ -55,6 +55,7 @@ const api: ControlApi = {
   openHistoryFile: (id: string, kind: 'transcript' | 'summary') =>
     ipcRenderer.invoke('history:openFile', id, kind),
   getUsage: () => ipcRenderer.invoke('usage:get'),
+  listLiveModels: () => ipcRenderer.invoke('models:listLive'),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),
   onSubtitleUpdate: (cb: (u: SubtitleUpdate) => void) => subscribe('subtitle:update', cb),
   onMetrics: (cb: (m: Metrics) => void) => subscribe('metrics:update', cb),

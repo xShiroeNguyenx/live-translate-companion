@@ -1,3 +1,5 @@
+import type { GeminiApiVersion } from './gemini-api'
+
 export type SessionState =
   | 'idle'
   | 'connecting'
@@ -70,6 +72,9 @@ export interface AppSettings {
   highlightKeywords: string
   autoSummary: boolean
   summaryModel: string
+  // Gemini API: version endpoint (Live + tóm tắt) và model dịch Live; áp dụng từ lần kết nối sau
+  apiVersion: GeminiApiVersion
+  liveModel: string
   // 0 = không giới hạn
   monthlyBudgetUsd: number
   minimizeToTray: boolean

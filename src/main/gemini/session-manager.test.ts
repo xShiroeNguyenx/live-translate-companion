@@ -211,6 +211,22 @@ describe('SessionManager state machine', () => {
     await manager.stop()
   })
 
+  it('đọc model + API version từ Cài đặt mỗi lần kết nối', async () => {
+    const { manager, sdk, deps } = setup()
+    let version: 'v1beta' | 'v1alpha' = 'v1beta'
+    deps.getLiveModel = (): string => 'gemini-x-preview'
+    deps.getApiVersion = () => version
+    await manager.start()
+    expect(sdk.lastOpts.model).toBe('gemini-x-preview')
+    expect(sdk.lastOpts.apiVersion).toBe('v1beta')
+    await manager.stop()
+
+    version = 'v1alpha'
+    await manager.start()
+    expect(sdk.lastOpts.apiVersion).toBe('v1alpha')
+    await manager.stop()
+  })
+
   it('connect bị từ chối systemInstruction lúc start → thử lại không ngữ cảnh', async () => {
     const { manager, sdk, states, deps } = setup()
     deps.getSystemInstruction = (): string => 'ctx'

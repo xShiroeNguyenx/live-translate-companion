@@ -1,3 +1,4 @@
+import type { LiveModelInfo } from './gemini-api'
 import type {
   AppSettings,
   AudioInputDeviceInfo,
@@ -47,6 +48,7 @@ export const IPC = {
   historySummarize: 'history:summarize',
   historyOpenFile: 'history:openFile',
   usageGet: 'usage:get',
+  modelsListLive: 'models:listLive',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -81,6 +83,12 @@ export const IPC = {
   outgoingSinkState: 'outgoing:sinkState'
 } as const
 
+export interface ListLiveModelsResult {
+  ok: boolean
+  models: LiveModelInfo[]
+  error?: string
+}
+
 export interface ControlApi {
   getSettings(): Promise<AppSettings>
   setSettings(patch: Partial<AppSettings>): Promise<AppSettings>
@@ -112,6 +120,8 @@ export interface ControlApi {
   summarizeHistory(id: string): Promise<{ ok: boolean; error?: string }>
   openHistoryFile(id: string, kind: 'transcript' | 'summary'): Promise<void>
   getUsage(): Promise<UsageSummary>
+  // model dịch Live mà API key dùng được, theo API version đang chọn
+  listLiveModels(): Promise<ListLiveModelsResult>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void

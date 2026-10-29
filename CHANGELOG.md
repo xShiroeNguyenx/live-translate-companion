@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1] — 2026-10-29
+
+### Thêm mới
+- **Chọn API version và model dịch trong Cài đặt** (mục "Gemini API").
+  - API version: `v1beta` (mặc định) hoặc `v1alpha`. Áp dụng cho dịch Live (cả SDK lẫn kết nối dự phòng) và tóm tắt.
+  - Model dịch Live đổi được (mặc định `gemini-3.5-live-translate-preview`), nhập có hay không có tiền tố `models/` đều được.
+  - Nút **Tải** lấy danh sách model mà API key của bạn dùng được (chỉ các model dịch chạy được Live; model Live đa năng như `gemini-3.8-live` không hỗ trợ dịch nên không hiện), rồi chọn từ dropdown thay vì phải gõ tên.
+  - Thay đổi có hiệu lực từ lần kết nối sau.
+
+### Thay đổi
+- Nâng `@google/genai` từ 2.8.0 lên 2.31.0.
+
 ## [0.4.0] — 2026-10-13
 
 ### Thêm mới

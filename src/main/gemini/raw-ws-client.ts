@@ -1,5 +1,5 @@
 import WebSocket from 'ws'
-import { MODEL_ID } from '../../shared/constants'
+import { liveWsUrl, normalizeApiVersion, normalizeLiveModel } from '../../shared/gemini-api'
 import {
   normalizeServerMessage,
   type GeminiConnectOptions,
@@ -7,22 +7,20 @@ import {
   type GeminiLiveSession
 } from './client'
 
-const WS_URL =
-  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
-
 export class RawWsLiveClient implements GeminiLiveClient {
   readonly name = 'raw-ws' as const
 
   connect(opts: GeminiConnectOptions): Promise<GeminiLiveSession> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`${WS_URL}?key=${encodeURIComponent(opts.apiKey)}`)
+      const url = liveWsUrl(normalizeApiVersion(opts.apiVersion))
+      const ws = new WebSocket(`${url}?key=${encodeURIComponent(opts.apiKey)}`)
       let settled = false
 
       ws.on('open', () => {
         ws.send(
           JSON.stringify({
             setup: {
-              model: MODEL_ID,
+              model: normalizeLiveModel(opts.model),
               ...(opts.systemInstruction
                 ? { systemInstruction: { parts: [{ text: opts.systemInstruction }] } }
                 : {}),

@@ -96,7 +96,7 @@ describe('SummaryService', () => {
     svc.on('status', (s: { state: string }) => statuses.push(s.state))
     const result = await svc.summarize(id)
     expect(result.ok).toBe(true)
-    expect(generate).toHaveBeenCalledWith('k', 'm-test', expect.any(String))
+    expect(generate).toHaveBeenCalledWith('k', 'm-test', expect.any(String), 'v1beta')
     expect(statuses).toEqual(['running', 'done'])
     const saved = history.get(id)
     expect(saved?.summary).toContain('ok')

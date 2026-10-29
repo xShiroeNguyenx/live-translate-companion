@@ -143,6 +143,8 @@ if (gotLock) {
       getTargetLanguage: () => settings.get().targetLanguage,
       getVadThresholdDb: () => settings.get().vadThresholdDb,
       getSystemInstruction: contextInstruction,
+      getLiveModel: () => settings.get().liveModel,
+      getApiVersion: () => settings.get().apiVersion,
       startCapture: () => startEngineCapture(engine),
       stopCapture: () => stopEngineCapture(engine),
       onPlaybackChunk: (pcm) => {
@@ -181,6 +183,8 @@ if (gotLock) {
       getVadThresholdDb: () => settings.get().outgoingVadThresholdDb,
       getGateMode: () => settings.get().outgoingMode,
       getSystemInstruction: contextInstruction,
+      getLiveModel: () => settings.get().liveModel,
+      getApiVersion: () => settings.get().apiVersion,
       startCapture: () => startEngineMic(engine, settings.get().micDeviceId),
       stopCapture: () => stopEngineMic(engine),
       onPlaybackChunk: (pcm) => {

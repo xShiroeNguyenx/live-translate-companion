@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_SUMMARY_MODEL, INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
+import {
+  API_VERSIONS,
+  DEFAULT_API_VERSION,
+  DEFAULT_LIVE_MODEL,
+  normalizeApiVersion,
+  normalizeLiveModel,
+  type LiveModelInfo
+} from '../../shared/gemini-api'
 import { LANGUAGES } from '../../shared/languages'
 import type { ExportFormat } from '../../shared/types'
 import { OutgoingSettings } from './OutgoingPanel'
@@ -44,6 +52,12 @@ export function SettingsPanel({
   const [context, setContext] = useDraft(settings?.meetingContext ?? '')
   const [keywords, setKeywords] = useDraft(settings?.highlightKeywords ?? '')
   const [model, setModel] = useDraft(settings?.summaryModel ?? '')
+  const [liveModel, setLiveModel] = useDraft(settings?.liveModel ?? '')
+  const [liveModels, setLiveModels] = useState<LiveModelInfo[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
+
+  // danh sách model phụ thuộc API version → đổi version thì bỏ danh sách cũ
+  useEffect(() => setLiveModels([]), [settings?.apiVersion])
   const [budget, setBudget] = useDraft(String(settings?.monthlyBudgetUsd ?? 0))
 
   useEffect(() => {
@@ -96,6 +110,29 @@ export function SettingsPanel({
     }
   }
 
+  const saveLiveModel = (input: string): void => {
+    const value = normalizeLiveModel(input).replace(/^models\//, '')
+    setLiveModel(value)
+    void patchSettings({ liveModel: value })
+  }
+
+  const loadLiveModels = async (): Promise<void> => {
+    setLoadingModels(true)
+    try {
+      const result = await api.listLiveModels()
+      setLiveModels(result.models)
+      notify(
+        result.ok
+          ? `Tìm thấy ${result.models.length} model dịch trên ${settings.apiVersion}.`
+          : `Không tải được danh sách model: ${result.error ?? 'lỗi không rõ'}`
+      )
+    } catch (err) {
+      notify(`Không tải được danh sách model: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setLoadingModels(false)
+    }
+  }
+
   const saveBudget = (): void => {
     const n = Number(budget.replace(',', '.'))
     const value = Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0
@@ -106,7 +143,7 @@ export function SettingsPanel({
   return (
     <>
       <section className="card">
-        <h2>Gemini API key</h2>
+        <h2>Gemini API</h2>
         <div className="row">
           <input
             type="password"
@@ -118,6 +155,62 @@ export function SettingsPanel({
             Lưu
           </button>
         </div>
+        <div className="row">
+          <span className="field-label">🔖 API version</span>
+          <select
+            className="narrow"
+            value={settings.apiVersion}
+            onChange={(e) =>
+              void patchSettings({ apiVersion: normalizeApiVersion(e.target.value) })
+            }
+          >
+            {API_VERSIONS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+                {v === DEFAULT_API_VERSION ? ' (mặc định)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="row">
+          <span className="field-label">🎧 Model dịch</span>
+          <input
+            type="text"
+            value={liveModel}
+            placeholder={DEFAULT_LIVE_MODEL}
+            onChange={(e) => setLiveModel(e.target.value)}
+            onBlur={() => saveLiveModel(liveModel)}
+          />
+          <button
+            className="small"
+            disabled={loadingModels || !hasKey}
+            title={hasKey ? 'Lấy danh sách model dịch từ Google' : 'Cần lưu API key trước'}
+            onClick={() => void loadLiveModels()}
+          >
+            {loadingModels ? 'Đang tải…' : 'Tải'}
+          </button>
+        </div>
+        {liveModels.length > 0 && (
+          <div className="row">
+            <span className="field-label" />
+            <select
+              value={liveModels.some((m) => m.id === liveModel) ? liveModel : ''}
+              onChange={(e) => e.target.value && saveLiveModel(e.target.value)}
+            >
+              <option value="">— Chọn trong {liveModels.length} model dịch —</option>
+              {liveModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName === m.id ? m.id : `${m.displayName} (${m.id})`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <p className="hint">
+          Áp dụng cho cả dịch Live lẫn tóm tắt, có hiệu lực từ lần kết nối sau
+          {running ? ' (đang dịch: hãy Dừng rồi Bắt đầu lại)' : ''}. Live API chỉ có trên v1beta /
+          v1alpha; model phải hỗ trợ Live translate, sai tên thì kết nối sẽ báo lỗi.
+        </p>
       </section>
 
       <section className="card">

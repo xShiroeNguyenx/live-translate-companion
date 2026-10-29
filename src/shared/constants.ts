@@ -4,7 +4,6 @@ export const FRAME_MS = 100
 export const SAMPLES_PER_FRAME = (INPUT_SAMPLE_RATE * FRAME_MS) / 1000
 export const BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2
 
-export const MODEL_ID = 'models/gemini-3.5-live-translate-preview'
 export const PRICE_USD_PER_MINUTE = 0.023
 
 export const VAD_DEFAULT_THRESHOLD_DB = -50

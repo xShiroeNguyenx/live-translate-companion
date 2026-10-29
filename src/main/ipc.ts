@@ -1,6 +1,6 @@
 import { app, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { IPC } from '../shared/ipc-contract'
+import { IPC, type ListLiveModelsResult } from '../shared/ipc-contract'
 import type { Updater } from './updater'
 import type {
   AppSettings,
@@ -18,7 +18,8 @@ import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
 import type { SummaryService } from './summary/summary-service'
 import type { SessionManager } from './gemini/session-manager'
-import { hasApiKey, setApiKey } from './secrets'
+import { listLiveModels } from './gemini/model-list'
+import { getApiKey, hasApiKey, setApiKey } from './secrets'
 import type { SettingsStore } from './settings'
 import type { SubtitleStore } from './subtitles/store'
 import { startEngineCapture, stopEngineCapture } from './windows'
@@ -93,6 +94,25 @@ export function registerIpc(ctx: IpcContext): void {
     if (file && existsSync(file)) await shell.openPath(file)
   })
   ipcMain.handle(IPC.usageGet, () => ctx.usageSummary())
+
+  ipcMain.handle(IPC.modelsListLive, async (): Promise<ListLiveModelsResult> => {
+    const apiKey = getApiKey()
+    if (!apiKey) return { ok: false, models: [], error: 'Chưa cấu hình Gemini API key' }
+    const apiVersion = ctx.settings.get().apiVersion
+    try {
+      const models = await listLiveModels(apiKey, apiVersion)
+      if (models.length === 0) {
+        return {
+          ok: false,
+          models,
+          error: `API key này không thấy model dịch Live nào trên ${apiVersion}`
+        }
+      }
+      return { ok: true, models }
+    } catch (err) {
+      return { ok: false, models: [], error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 
   ipcMain.handle(IPC.transcriptExport, async (_e, format: ExportFormat) => {
     const content = ctx.store.export(format)

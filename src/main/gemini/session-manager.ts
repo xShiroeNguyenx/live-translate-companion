@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { FRAME_MS, IDLE_DISCONNECT_MS, PRICE_USD_PER_MINUTE } from '../../shared/constants'
+import type { GeminiApiVersion } from '../../shared/gemini-api'
 import type { Metrics, SessionState, SessionStateInfo } from '../../shared/types'
 import type { SubtitleStore } from '../subtitles/store'
 import {
@@ -23,6 +24,9 @@ export interface SessionManagerDeps {
   getGateMode?(): 'vad' | 'ptt'
   // ngữ cảnh cuộc họp gửi làm systemInstruction; bị từ chối thì tự tắt cho phiên đó
   getSystemInstruction?(): string | undefined
+  // model + version Gemini đọc lại mỗi lần kết nối, nên đổi trong Cài đặt có hiệu lực từ lần nối sau
+  getLiveModel?(): string
+  getApiVersion?(): GeminiApiVersion
 }
 
 const MAX_PENDING_FRAMES = 50
@@ -248,6 +252,8 @@ export class SessionManager extends EventEmitter {
     const session = await client.connect({
       apiKey,
       targetLanguage: this.deps.getTargetLanguage(),
+      model: this.deps.getLiveModel?.(),
+      apiVersion: this.deps.getApiVersion?.(),
       resumptionHandle: this.resumptionHandle,
       systemInstruction: this.contextDisabled ? undefined : this.deps.getSystemInstruction?.(),
       callbacks: {
