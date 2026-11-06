@@ -195,7 +195,14 @@ export function App(): React.JSX.Element {
           {update.percent !== undefined ? ` ${update.percent}%` : ''}
         </div>
       )}
-      {update.state === 'error' && <Warn>Lỗi kiểm tra cập nhật: {update.error}</Warn>}
+      {update.state === 'error' && update.transient && (
+        <div className="alert info compact">
+          <span>⏳ {update.error}</span>
+        </div>
+      )}
+      {update.state === 'error' && !update.transient && (
+        <Warn>Lỗi kiểm tra cập nhật: {update.error}</Warn>
+      )}
       {!hasKey && <Warn onFix={openSettings}>Chưa có Gemini API key.</Warn>}
       {sinkError && (
         <Warn onFix={openSettings}>

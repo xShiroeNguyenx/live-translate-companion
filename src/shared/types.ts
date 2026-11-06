@@ -176,4 +176,6 @@ export interface UpdateStatus {
   version?: string
   percent?: number
   error?: string
+  // lỗi tự hết sau ít phút (release đang đăng dở, mất mạng) — app tự thử lại, UI báo nhẹ
+  transient?: boolean
 }

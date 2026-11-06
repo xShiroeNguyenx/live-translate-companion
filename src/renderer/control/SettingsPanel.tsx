@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { DEFAULT_SUMMARY_MODEL, INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
+import {
+  DEFAULT_SUMMARY_MODEL,
+  INCOMING_PAUSE_SHORTCUT,
+  INCOMING_TOGGLE_SHORTCUT
+} from '../../shared/constants'
 import {
   API_VERSIONS,
   DEFAULT_API_VERSION,
@@ -488,7 +492,8 @@ export function SettingsPanel({
         </label>
         <p className="hint">
           Phím tắt toàn cục: {INCOMING_TOGGLE_SHORTCUT.replace('CommandOrControl', 'Ctrl')} bật/tắt
-          chiều về · Ctrl+Space giữ-để-nói chiều đi · Ctrl+Shift+O khoá overlay.
+          chiều về · {INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')} tạm dừng/tiếp
+          tục chiều về · Ctrl+Space giữ-để-nói chiều đi · Ctrl+Shift+O khoá overlay.
         </p>
         <div className="row wrap">
           <button onClick={() => void recordDebugWav()} disabled={busy}>

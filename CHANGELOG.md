@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.3] — 2026-11-06
+
+### Sửa lỗi
+- **Lỗi kiểm tra cập nhật hiện gọn và đúng mức.**
+  - Trước đây, nếu app kiểm tra đúng lúc GitHub đang đăng bản mới, màn hình hiện một khối lỗi 404 dài, kèm stack trace và HTTP header.
+  - Nay app báo nhẹ "Bản mới đang được đăng lên GitHub… App sẽ tự thử lại sau ít phút" và tự kiểm tra lại sau 5 phút, tối đa 6 lần.
+  - Mất mạng hoặc GitHub lỗi 5xx cũng được xử lý như vậy.
+  - Các lỗi khác chỉ hiện dòng đầu. Chi tiết đầy đủ vẫn có trong log.
+- **Quy trình release không còn để lộ release thiếu file.** Release được tạo ở dạng nháp, kiểm đủ installer, blockmap và `latest.yml` rồi mới công khai.
+
+### Thay đổi
+- Tab Cài đặt ghi thêm phím tắt `Ctrl+Alt+P` (tạm dừng / tiếp tục chiều về).
+
 ## [0.4.2] — 2026-11-06
 
 ### Thêm mới
