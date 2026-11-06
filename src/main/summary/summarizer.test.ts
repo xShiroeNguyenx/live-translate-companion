@@ -100,6 +100,19 @@ describe('summarizer', () => {
     ])
   })
 
+  it('prompt yêu cầu dòng "# tên"; đã có tên người dùng đặt thì giữ đúng tên đó', () => {
+    const auto = buildSummaryPrompt({ incoming, outgoing: [], meetingContext: '', language: 'vi' })
+    expect(auto).toContain('Dòng đầu tiên: "# " + tên ngắn cho cuộc họp')
+    const named = buildSummaryPrompt({
+      incoming: { ...incoming, title: '  Họp chốt   hạn ' },
+      outgoing: [],
+      meetingContext: '',
+      language: 'vi'
+    })
+    expect(named).toContain('Dòng đầu tiên: "# Họp chốt hạn"')
+    expect(named).not.toContain('tên ngắn cho cuộc họp')
+  })
+
   it('prompt chứa ngữ cảnh + ngôn ngữ đầu ra', () => {
     const p = buildSummaryPrompt({
       incoming,
@@ -151,6 +164,25 @@ describe('SummaryService', () => {
     expect(saved?.summary).toContain('ok')
     expect(saved?.summaryFile).toBe(join(dir, `${id}_tom-tat.md`))
     expect(readFileSync(saved!.summaryFile!, 'utf-8')).toContain('## Tóm tắt')
+  })
+
+  it('lưu tên AI đặt từ dòng "# …"; tóm tắt lại không có dòng đó thì giữ tên cũ', async () => {
+    const history = new HistoryStore(join(dir, 'history'))
+    history.upsert(rec('t', 'incoming', 0, 1, [seg(0, 'a', 'b')]))
+    const outputs = ['# Họp chốt hạn giao hàng\n\n## Tóm tắt\n- ok', '## Tóm tắt\n- lần 2']
+    const svc = new SummaryService({
+      history,
+      getApiKey: () => 'k',
+      getSettings: () => DEFAULT_SETTINGS,
+      fallbackDir: () => dir,
+      generate: async () => ({ text: outputs.shift() ?? '', usage: { inputTokens: 0, outputTokens: 0 } })
+    })
+    await svc.summarize('t')
+    expect(history.get('t')?.autoTitle).toBe('Họp chốt hạn giao hàng')
+    expect(history.get('t')?.summary).toContain('# Họp chốt hạn giao hàng')
+    await svc.summarize('t')
+    expect(history.get('t')?.autoTitle).toBe('Họp chốt hạn giao hàng')
+    expect(history.get('t')?.summary).toBe('## Tóm tắt\n- lần 2')
   })
 
   it('model trả về rỗng → lỗi, nhưng vẫn ghi chi phí', async () => {

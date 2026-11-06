@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { splitSummaryTitle } from '../../shared/meeting-title'
 import type { AppSettings, HistoryRecord, SummaryStatus } from '../../shared/types'
 import { flashCostUsd } from '../gemini/flash'
 import type { HistoryStore } from '../history/history-store'
@@ -85,7 +86,9 @@ export class SummaryService extends EventEmitter {
       const summaryFile = `${base}_tom-tat.md`
       mkdirSync(dirname(summaryFile), { recursive: true })
       writeFileSync(summaryFile, summary + '\n', 'utf-8')
-      this.deps.history.upsert({ id, summary, summaryFile })
+      // tên AI đặt từ dòng "# …" đầu bản tóm tắt; không có thì giữ tên AI cũ (nếu có)
+      const { title: autoTitle } = splitSummaryTitle(summary)
+      this.deps.history.upsert({ id, summary, summaryFile, ...(autoTitle ? { autoTitle } : {}) })
       this.emitStatus({ id, state: 'done' })
       return { ok: true }
     } catch (err) {

@@ -98,6 +98,10 @@ export interface HistoryRecord {
   transcriptFile: string | null
   summaryFile?: string
   summary?: string
+  // tên cuộc họp do người dùng đặt (tab Dịch hoặc tab Lịch sử)
+  title?: string
+  // tên AI đặt từ dòng "# …" đầu bản tóm tắt — chỉ dùng khi chưa có title
+  autoTitle?: string
   segments: SubtitleSegment[]
 }
 

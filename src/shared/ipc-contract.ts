@@ -55,6 +55,9 @@ export const IPC = {
   historySummarize: 'history:summarize',
   historySummarizeCurrent: 'history:summarizeCurrent',
   historyOpenFile: 'history:openFile',
+  historyRename: 'history:rename',
+  meetingGetTitle: 'meeting:getTitle',
+  meetingSetTitle: 'meeting:setTitle',
   usageGet: 'usage:get',
   modelsListLive: 'models:listLive',
   assistantAsk: 'assistant:ask',
@@ -83,6 +86,7 @@ export const IPC = {
   evHistoryChanged: 'history:changed',
   evSummaryStatus: 'summary:status',
   evUsageUpdate: 'usage:update',
+  evMeetingTitle: 'meeting:title',
 
   audioChunk: 'audio:chunk',
   captureError: 'capture:error',
@@ -137,6 +141,11 @@ export interface ControlApi {
   // tóm tắt phần đã dịch của phiên chiều về đang chạy/tạm dừng, không dừng phiên
   summarizeCurrent(): Promise<{ ok: boolean; error?: string }>
   openHistoryFile(id: string, kind: 'transcript' | 'summary'): Promise<void>
+  // đặt tên cho 1 phiên trong lịch sử (rỗng = xoá tên); false = không có phiên này
+  renameHistory(id: string, title: string): Promise<boolean>
+  // tên cuộc họp hiện tại (phiên chiều về đang chạy / vừa dừng); trả về tên đã chuẩn hoá
+  getMeetingTitle(): Promise<string>
+  setMeetingTitle(title: string): Promise<string>
   getUsage(): Promise<UsageSummary>
   // model dịch Live mà API key dùng được, theo API version đang chọn
   listLiveModels(): Promise<ListLiveModelsResult>
@@ -160,6 +169,8 @@ export interface ControlApi {
   onHistoryChanged(cb: () => void): () => void
   onSummaryStatus(cb: (s: SummaryStatus) => void): () => void
   onUsage(cb: (u: UsageSummary) => void): () => void
+  // tên cuộc họp hiện tại đổi (đặt ở tab Dịch/Lịch sử, hoặc phiên mới → rỗng)
+  onMeetingTitle(cb: (title: string) => void): () => void
 }
 
 export interface OverlayApi {

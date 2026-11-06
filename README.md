@@ -104,6 +104,12 @@ Khi bấm **Dừng** (chiều về), app gửi transcript cho Gemini (`gemini-fl
 
 Phiên quá ngắn (dưới ~200 ký tự bản dịch) sẽ được bỏ qua. Tab **Lịch sử** liệt kê mọi phiên đã lưu: bấm vào để xem tóm tắt và transcript song ngữ, nút **Tóm tắt / Tóm tắt lại**, mở file hoặc xoá. Ô tìm kiếm tìm trong cả transcript lẫn tóm tắt, không phân biệt dấu.
 
+**Đặt tên cuộc họp** để dễ tìm lại:
+- Đang họp: gõ vào ô **📌 Tên cuộc họp** ở tab Dịch. Tên được gắn vào mục Lịch sử của phiên đó (cả lời chiều đi trong lúc họp).
+- Phiên cũ: mở phiên trong tab Lịch sử rồi sửa ô tên.
+- Chưa đặt tên thì khi tóm tắt, AI tự đặt một tên ngắn (hiện chữ nghiêng). Phiên tóm tắt từ trước bản 0.5.1 chưa có tên này: bấm **Tóm tắt lại** để có.
+- Ô tìm kiếm tìm được theo tên.
+
 > Lịch sử được lưu ở `%APPDATA%\live-translate-companion\history` và chỉ ghi khi bật **Tự lưu**. Xoá một phiên sẽ xoá luôn file transcript và file tóm tắt của phiên đó.
 
 ### 6. Ngữ cảnh, thuật ngữ & từ khoá

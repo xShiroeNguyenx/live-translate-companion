@@ -1,6 +1,7 @@
 import { generateFlash, type FlashResult } from '../gemini/flash'
 import type { GeminiApiVersion } from '../../shared/gemini-api'
 import { languageLabel } from '../../shared/languages'
+import { normalizeTitle } from '../../shared/meeting-title'
 import { formatPauseDuration, isPauseMarker, wallClock } from '../../shared/pause'
 import type { HistoryRecord, SubtitleSegment } from '../../shared/types'
 
@@ -90,6 +91,7 @@ export function mergeTranscript(input: TranscriptInput): string {
 export function buildSummaryPrompt(input: SummaryInput): string {
   const lang = languageLabel(input.language)
   const context = input.meetingContext.trim()
+  const title = normalizeTitle(input.incoming.title)
   return [
     `Bạn là thư ký cuộc họp. Dưới đây là transcript song ngữ (lời gốc + bản dịch máy) của một cuộc họp.`,
     `"Meeting" là những người khác trong cuộc họp, "Tôi" là người dùng app.`,
@@ -98,7 +100,12 @@ export function buildSummaryPrompt(input: SummaryInput): string {
       ? `Dòng "TẠM DỪNG DỊCH" là khoảng người dùng tắt dịch — nội dung đoạn đó bị thiếu, đừng suy đoán.`
       : '',
     context ? `\nNgữ cảnh / thuật ngữ do người dùng cung cấp:\n${context}` : '',
-    `\nHãy viết bằng ${lang}, định dạng Markdown, đúng các mục sau (bỏ mục nào không có nội dung):`,
+    `\nHãy viết bằng ${lang}, định dạng Markdown.`,
+    // dòng "# …" được tách làm tên cuộc họp (splitSummaryTitle) khi người dùng chưa đặt tên
+    title
+      ? `Dòng đầu tiên: "# ${title}" (tên cuộc họp do người dùng đặt, giữ nguyên).`
+      : `Dòng đầu tiên: "# " + tên ngắn cho cuộc họp, 4–10 từ, nêu chủ đề chính (không ghi ngày giờ).`,
+    `Sau đó là đúng các mục sau (bỏ mục nào không có nội dung):`,
     `## Tóm tắt\n3–6 gạch đầu dòng nội dung chính.`,
     `## Quyết định\nCác điều đã thống nhất.`,
     `## Việc cần làm\nDạng "- [ ] Ai — việc gì — hạn (nếu có)".`,

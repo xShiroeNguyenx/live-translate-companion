@@ -2,13 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { INCOMING_PAUSE_SHORTCUT, INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
 import { parseKeywords } from '../../shared/keywords'
 import { languageShort } from '../../shared/languages'
+import { MAX_TITLE_CHARS } from '../../shared/meeting-title'
 import type { ExportFormat } from '../../shared/types'
 import { AssistantPanel } from './AssistantPanel'
 import { HistoryPanel } from './HistoryPanel'
 import { OutgoingPanel } from './OutgoingPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { useControlStore } from './store'
-import { formatDuration, isDefaultDevice, STATE_COLORS, STATE_LABELS } from './ui-helpers'
+import {
+  formatDuration,
+  isDefaultDevice,
+  STATE_COLORS,
+  STATE_LABELS,
+  useDraft
+} from './ui-helpers'
 import { LevelMeter, SegmentList, Warn } from './widgets'
 
 type Tab = 'main' | 'history' | 'settings'
@@ -33,6 +40,38 @@ function UsageBar(): React.JSX.Element {
         </div>
       )}
     </div>
+  )
+}
+
+// Tên cuộc họp hiện tại: lưu khi rời ô hoặc Enter, ghi vào mục Lịch sử của phiên này
+function MeetingTitleField(): React.JSX.Element {
+  const title = useControlStore((s) => s.meetingTitle)
+  const setMeetingTitle = useControlStore((s) => s.setMeetingTitle)
+  const autoSave = useControlStore((s) => s.settings?.autoSaveEnabled ?? true)
+  const [draft, setDraft] = useDraft(title)
+  const save = (): void => {
+    if (draft.trim() !== title) void setMeetingTitle(draft)
+  }
+  return (
+    <>
+      <div className="row">
+        <span className="field-label">📌 Tên cuộc họp</span>
+        <input
+          type="text"
+          value={draft}
+          maxLength={MAX_TITLE_CHARS}
+          placeholder="vd. Họp tiến độ với khách hàng"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur()
+          }}
+        />
+      </div>
+      {!autoSave && (
+        <p className="hint">Bật “Tự lưu transcript” (tab Cài đặt) để tên được lưu vào Lịch sử.</p>
+      )}
+    </>
   )
 }
 
@@ -262,6 +301,7 @@ export function App(): React.JSX.Element {
                 transcript; bấm Dừng để kết thúc phiên.
               </p>
             )}
+            {(running || segments.length > 0) && <MeetingTitleField />}
             <LevelMeter rmsDb={metrics.rmsDb} thresholdDb={settings.vadThresholdDb} />
             <SegmentList segments={segments} placeholder="Chưa có nội dung…" keywords={keywords} />
             <div className="row export-row">

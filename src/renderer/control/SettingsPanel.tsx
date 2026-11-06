@@ -16,15 +16,9 @@ import { LANGUAGES } from '../../shared/languages'
 import type { ExportFormat } from '../../shared/types'
 import { OutgoingSettings } from './OutgoingPanel'
 import { useControlStore } from './store'
-import { isDefaultDevice } from './ui-helpers'
+import { isDefaultDevice, useDraft } from './ui-helpers'
 import { VadSlider } from './widgets'
 
-// Ô nhập text chỉ lưu khi rời ô (tránh ghi settings.json mỗi phím gõ)
-function useDraft(value: string): [string, (v: string) => void] {
-  const [draft, setDraft] = useState(value)
-  useEffect(() => setDraft(value), [value])
-  return [draft, setDraft]
-}
 
 export function SettingsPanel({
   notify,

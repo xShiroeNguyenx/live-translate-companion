@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { languageShort } from '../../shared/languages'
+import { MAX_TITLE_CHARS, meetingTitleOf, splitSummaryTitle } from '../../shared/meeting-title'
 import { countSpokenSegments } from '../../shared/pause'
 import type { HistoryEntry, HistoryRecord } from '../../shared/types'
 import { useControlStore } from './store'
-import { formatDuration } from './ui-helpers'
+import { formatDuration, useDraft } from './ui-helpers'
 import { SegmentList } from './widgets'
 
 function formatDate(ms: number): string {
@@ -29,6 +30,7 @@ export function HistoryPanel({
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [record, setRecord] = useState<HistoryRecord | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [titleDraft, setTitleDraft] = useDraft(record?.title ?? '')
 
   const reload = useCallback(() => {
     void api?.listHistory(query).then(setEntries)
@@ -84,6 +86,15 @@ export function HistoryPanel({
       onSelect(null)
       reload()
     }
+    const saveTitle = async (): Promise<void> => {
+      if (titleDraft.trim() === (record.title ?? '')) return
+      if (!(await api.renameHistory(record.id, titleDraft))) {
+        setError('Không đổi được tên phiên này.')
+        return
+      }
+      setRecord(await api.getHistory(record.id))
+      reload()
+    }
     const summarize = async (): Promise<void> => {
       setError(null)
       const result = await api.summarizeHistory(record.id)
@@ -100,6 +111,22 @@ export function HistoryPanel({
               {record.direction === 'incoming' ? '🎧 Chiều về' : '🎙 Chiều đi'} ·{' '}
               {formatDate(record.startedAt)}
             </h2>
+          </div>
+          <div className="row">
+            <span className="field-label">📌 Tên cuộc họp</span>
+            <input
+              type="text"
+              value={titleDraft}
+              maxLength={MAX_TITLE_CHARS}
+              placeholder={
+                record.autoTitle ? `${record.autoTitle} (AI đặt)` : 'Đặt tên để dễ tìm lại…'
+              }
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={() => void saveTitle()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur()
+              }}
+            />
           </div>
           <div className="metrics">
             <span>⏱ {durationOf(record)}</span>
@@ -134,7 +161,8 @@ export function HistoryPanel({
         {record.summary && (
           <section className="card">
             <h2>Tóm tắt</h2>
-            <div className="summary-text">{record.summary}</div>
+            {/* dòng "# tên" đầu bản tóm tắt đã hiện ở ô tên → bỏ cho khỏi lặp */}
+            <div className="summary-text">{splitSummaryTitle(record.summary).body}</div>
           </section>
         )}
 
@@ -151,7 +179,7 @@ export function HistoryPanel({
       <div className="row">
         <input
           type="search"
-          placeholder="🔍 Tìm trong transcript & tóm tắt…"
+          placeholder="🔍 Tìm theo tên, transcript, tóm tắt…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -164,6 +192,14 @@ export function HistoryPanel({
       <div className="history-list">
         {entries.map((e) => (
           <button key={e.id} className="history-item" onClick={() => onSelect(e.id)}>
+            {meetingTitleOf(e) && (
+              <div
+                className={`history-title ${e.title?.trim() ? '' : 'auto'}`}
+                title={e.title?.trim() ? undefined : 'Tên do AI đặt từ bản tóm tắt — mở phiên để đổi'}
+              >
+                {meetingTitleOf(e)}
+              </div>
+            )}
             <div className="history-meta">
               <span>{e.direction === 'incoming' ? '🎧' : '🎙'}</span>
               <span>{formatDate(e.startedAt)}</span>

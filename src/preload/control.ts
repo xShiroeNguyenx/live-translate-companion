@@ -60,6 +60,9 @@ const api: ControlApi = {
   summarizeCurrent: () => ipcRenderer.invoke('history:summarizeCurrent'),
   openHistoryFile: (id: string, kind: 'transcript' | 'summary') =>
     ipcRenderer.invoke('history:openFile', id, kind),
+  renameHistory: (id: string, title: string) => ipcRenderer.invoke('history:rename', id, title),
+  getMeetingTitle: () => ipcRenderer.invoke('meeting:getTitle'),
+  setMeetingTitle: (title: string) => ipcRenderer.invoke('meeting:setTitle', title),
   getUsage: () => ipcRenderer.invoke('usage:get'),
   listLiveModels: () => ipcRenderer.invoke('models:listLive'),
   askAssistant: (question: string, previous: QaTurn[]) =>
@@ -84,7 +87,8 @@ const api: ControlApi = {
   onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb),
   onHistoryChanged: (cb: () => void) => subscribe('history:changed', cb),
   onSummaryStatus: (cb: (s: SummaryStatus) => void) => subscribe('summary:status', cb),
-  onUsage: (cb: (u: UsageSummary) => void) => subscribe('usage:update', cb)
+  onUsage: (cb: (u: UsageSummary) => void) => subscribe('usage:update', cb),
+  onMeetingTitle: (cb: (title: string) => void) => subscribe('meeting:title', cb)
 }
 
 contextBridge.exposeInMainWorld('controlApi', api)

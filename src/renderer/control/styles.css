@@ -645,3 +645,19 @@ button.danger:hover:not(:disabled) {
   color: #86efac;
   font-size: 13px;
 }
+
+/* tên cuộc họp trong danh sách lịch sử (AI đặt thì nghiêng, nhạt hơn) */
+.history-title {
+  color: #f3f4f6;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-title.auto {
+  color: #d1d5db;
+  font-weight: 500;
+  font-style: italic;
+}

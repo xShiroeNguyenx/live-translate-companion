@@ -1,5 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SessionState } from '../../shared/types'
+
+// Ô nhập text chỉ lưu khi rời ô (tránh ghi mỗi phím gõ); giá trị gốc đổi thì bản nháp theo
+export function useDraft(value: string): [string, (v: string) => void] {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => setDraft(value), [value])
+  return [draft, setDraft]
+}
 
 export const STATE_LABELS: Record<SessionState, string> = {
   idle: 'Chưa chạy',

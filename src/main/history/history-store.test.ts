@@ -58,6 +58,15 @@ describe('HistoryStore', () => {
     expect(h.list('bao gia').map((e) => e.id)).toEqual(['old'])
   })
 
+  it('tìm theo tên cuộc họp (người dùng đặt hoặc AI đặt); entry có cả 2 trường tên', () => {
+    const h = new HistoryStore(join(dir, 'history'))
+    h.upsert({ ...record('a', 1, 'x'), title: 'Họp khách hàng Nhật' })
+    h.upsert({ ...record('b', 2, 'y'), autoTitle: 'Báo cáo tiến độ tuần' })
+    expect(h.list('khach hang').map((e) => e.id)).toEqual(['a'])
+    expect(h.list('tien do').map((e) => e.id)).toEqual(['b'])
+    expect(h.list()[1]).toMatchObject({ id: 'a', title: 'Họp khách hàng Nhật' })
+  })
+
   it('delete xoá cả file transcript', () => {
     const h = new HistoryStore(join(dir, 'history'))
     const file = join(dir, 't.txt')

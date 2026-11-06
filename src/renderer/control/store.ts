@@ -87,6 +87,9 @@ interface ControlState {
   lastSummary: SummaryStatus | null
   // trợ lý cuộc họp — xoá khi bắt đầu phiên chiều về mới (transcript bị xoá)
   assistantItems: AssistantItem[]
+  // tên cuộc họp hiện tại (phiên chiều về đang chạy / vừa dừng); main là nguồn sự thật
+  meetingTitle: string
+  setMeetingTitle(title: string): Promise<void>
   askAssistant(question: string): Promise<void>
   suggestReplies(): Promise<void>
   clearAssistant(): void
@@ -143,6 +146,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
   summaries: {},
   lastSummary: null,
   assistantItems: [],
+  meetingTitle: '',
 
   init: () => {
     if (!api) return
@@ -177,6 +181,8 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onUpdateStatus((update) => set({ update }))
     void api.getUsage().then((usage) => set({ usage }))
     api.onUsage((usage) => set({ usage }))
+    void api.getMeetingTitle().then((meetingTitle) => set({ meetingTitle }))
+    api.onMeetingTitle((meetingTitle) => set({ meetingTitle }))
     api.onSummaryStatus((status) =>
       set((state) => ({
         summaries: { ...state.summaries, [status.id]: status },
@@ -232,6 +238,12 @@ export const useControlStore = create<ControlState>((set, get) => ({
   },
 
   clearAssistant: () => set({ assistantItems: [] }),
+
+  setMeetingTitle: async (title) => {
+    if (!api) return
+    const meetingTitle = await api.setMeetingTitle(title)
+    set({ meetingTitle })
+  },
 
   patchSettings: async (patch) => {
     if (!api) return

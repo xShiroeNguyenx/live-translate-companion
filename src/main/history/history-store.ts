@@ -19,6 +19,7 @@ function toEntry(r: HistoryRecord): HistoryEntry {
 }
 
 function matches(r: HistoryRecord, needle: string): boolean {
+  if (normalizeForMatch(`${r.title ?? ''} ${r.autoTitle ?? ''}`).includes(needle)) return true
   if (normalizeForMatch(r.summary ?? '').includes(needle)) return true
   return r.segments.some(
     (s) =>

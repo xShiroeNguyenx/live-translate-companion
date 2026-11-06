@@ -9,6 +9,7 @@ import {
   SUMMARY_MIN_CHARS
 } from '../shared/constants'
 import { IPC } from '../shared/ipc-contract'
+import { meetingTitleOf, normalizeTitle } from '../shared/meeting-title'
 import { countSpokenSegments } from '../shared/pause'
 import type {
   AppSettings,
@@ -22,6 +23,7 @@ import { buildContextInstruction, SdkLiveClient } from './gemini/client'
 import { RawWsLiveClient } from './gemini/raw-ws-client'
 import { SessionManager } from './gemini/session-manager'
 import { HistoryStore } from './history/history-store'
+import { MeetingTitleTracker } from './history/meeting-title-tracker'
 import { registerIpc } from './ipc'
 import { KeywordNotifier } from './keyword-notifier'
 import { getApiKey } from './secrets'
@@ -90,6 +92,9 @@ if (gotLock) {
 
     // ── Lịch sử + tự lưu ──
     const history = new HistoryStore(join(app.getPath('userData'), 'history'))
+    // tên cuộc họp hiện tại — gắn vào bản ghi lịch sử của phiên chiều về (và chiều đi chạy cùng lúc)
+    const meetingTitle = new MeetingTitleTracker(history)
+    meetingTitle.on('change', (title: string) => sendToControl(IPC.evMeetingTitle, title))
     const getAutoSaveDir = (): string =>
       settings.get().autoSaveDir || join(app.getPath('documents'), 'LiveTranslate')
     const autoSaveConfig = (): AutoSaveConfig => {
@@ -133,13 +138,17 @@ if (gotLock) {
       broadcast(IPC.evSubtitleUpdate, update)
       incomingSaver.onUpdate(update)
       keywordNotifier.onUpdate(update)
+      // phiên mới = cuộc họp mới. Sau incomingSaver: phiên cũ đã được ghi nốt (kèm tên cũ)
+      if (update.type === 'clear') meetingTitle.reset()
     })
     const incomingSaver = new TranscriptAutoSaver({
       exportAs: (format) => store.export(format),
       getConfig: autoSaveConfig,
       suffix: 'chieu-ve',
-      onFlush: (session) =>
+      onFlush: (session) => {
         recordHistory('incoming', session, sessions, store, settings.get().targetLanguage)
+        meetingTitle.onRecordWritten(session.id)
+      }
     })
 
     const sessions = new SessionManager([new SdkLiveClient(), new RawWsLiveClient()], store, {
@@ -172,7 +181,7 @@ if (gotLock) {
       exportAs: (format) => outgoingStore.export(format),
       getConfig: autoSaveConfig,
       suffix: 'chieu-di',
-      onFlush: (session) =>
+      onFlush: (session) => {
         recordHistory(
           'outgoing',
           session,
@@ -180,6 +189,9 @@ if (gotLock) {
           outgoingStore,
           settings.get().outgoingTargetLanguage
         )
+        // lời chiều đi trong lúc đang họp thuộc cùng cuộc họp → cùng tên
+        if (sessions.isStarted()) meetingTitle.onRecordWritten(session.id)
+      }
     })
     const outgoing = new SessionManager([new SdkLiveClient(), new RawWsLiveClient()], outgoingStore, {
       getApiKey: () => getApiKey(),
@@ -262,7 +274,9 @@ if (gotLock) {
     summary.on('status', (status) => {
       sendToControl(IPC.evSummaryStatus, status)
       if (status.state === 'done' && !control.isFocused()) {
-        notify('📝 Đã tóm tắt cuộc họp', 'Mở tab Lịch sử để xem.')
+        const rec = history.get(status.id)
+        const name = rec ? meetingTitleOf(rec) : ''
+        notify(name ? `📝 Đã tóm tắt: ${name}` : '📝 Đã tóm tắt cuộc họp', 'Mở tab Lịch sử để xem.')
       }
     })
     history.on('change', () => sendToControl(IPC.evHistoryChanged, null))
@@ -291,6 +305,25 @@ if (gotLock) {
       const id = incomingSaver.currentSession?.id
       if (!id) return { ok: false, error: 'Chưa lưu được transcript nên chưa tóm tắt được.' }
       return summary.summarize(id)
+    }
+
+    // ── Tên cuộc họp ──
+    // các phiên thuộc cuộc họp hiện tại: chiều về (đang chạy hoặc vừa dừng) + chiều đi nếu đang họp
+    const currentMeetingIds = (): (string | undefined)[] => [
+      incomingSaver.currentSession?.id,
+      sessions.isStarted() ? outgoingSaver.currentSession?.id : undefined
+    ]
+    const setMeetingTitle = (title: unknown): string => meetingTitle.set(title, currentMeetingIds())
+    // đổi tên từ tab Lịch sử
+    const renameHistory = (id: unknown, title: unknown): boolean => {
+      if (typeof id !== 'string') return false
+      // phiên của cuộc họp hiện tại → đi qua tracker để ô tên ở tab Dịch đồng bộ theo
+      if (id === incomingSaver.currentSession?.id) {
+        setMeetingTitle(title)
+        return true
+      }
+      if (!history.get(id)) return false
+      return !!history.upsert({ id, title: normalizeTitle(title) || undefined })
     }
 
     // ── Trợ lý cuộc họp: hỏi đáp + gợi ý trả lời ──
@@ -516,6 +549,9 @@ if (gotLock) {
       history,
       summary,
       assistant,
+      meetingTitle,
+      setMeetingTitle,
+      renameHistory,
       usageSummary,
       getAutoSaveDir,
       controlWindow: control,

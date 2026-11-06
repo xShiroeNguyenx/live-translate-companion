@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1] — 2026-11-06
+
+### Thêm mới
+- **Đặt tên cuộc họp**, để nhiều cuộc họp không còn lẫn vào nhau trong Lịch sử.
+  - Đang họp: ô **📌 Tên cuộc họp** ở tab Dịch. Đặt lúc nào trong buổi cũng được, kể cả ngay sau khi bấm Dừng. Tên được gắn cho cả lời chiều đi trong lúc họp.
+  - Phiên cũ: mở phiên trong tab Lịch sử rồi sửa ô tên.
+  - Tên hiện đậm ở đầu mỗi mục trong danh sách Lịch sử, trong thông báo "Đã tóm tắt", và tìm kiếm được.
+  - Bắt đầu phiên mới thì ô tên được xoá cho cuộc họp mới.
+- **AI tự đặt tên** cho phiên chưa có tên, ngay trong lượt tóm tắt, không tốn thêm lượt gọi. Tên này hiện chữ nghiêng và tự nhường chỗ khi bạn đặt tên riêng.
+  - Bản tóm tắt (`…_tom-tat.md`) nay mở đầu bằng dòng tiêu đề `# <tên cuộc họp>`.
+  - Phiên đã tóm tắt từ trước chưa có tên này: bấm **Tóm tắt lại** để có.
+
+### Lưu ý
+- Tên file transcript và tóm tắt vẫn đặt theo giờ bắt đầu, không đổi theo tên cuộc họp.
+
 ## [0.5.0] — 2026-11-06
 
 ### Thêm mới

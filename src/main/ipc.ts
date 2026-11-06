@@ -17,6 +17,7 @@ import {
 import type { AssistantService } from './assistant/assistant-service'
 import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
+import type { MeetingTitleTracker } from './history/meeting-title-tracker'
 import type { SummaryService } from './summary/summary-service'
 import type { SessionManager } from './gemini/session-manager'
 import { listLiveModels } from './gemini/model-list'
@@ -38,6 +39,10 @@ export interface IpcContext {
   summarizeCurrent(): Promise<{ ok: boolean; error?: string }>
   history: HistoryStore
   summary: SummaryService
+  meetingTitle: MeetingTitleTracker
+  // tên cuộc họp hiện tại (ghi vào các phiên đang chạy)
+  setMeetingTitle(title: unknown): string
+  renameHistory(id: unknown, title: unknown): boolean
   assistant: AssistantService
   usageSummary(): UsageSummary
   debug: DebugRecorder
@@ -97,6 +102,11 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.historyDelete, (_e, id: string) => ctx.history.delete(id))
   ipcMain.handle(IPC.historySummarize, (_e, id: string) => ctx.summary.summarize(id))
   ipcMain.handle(IPC.historySummarizeCurrent, () => ctx.summarizeCurrent())
+  ipcMain.handle(IPC.historyRename, (_e, id: unknown, title: unknown) =>
+    ctx.renameHistory(id, title)
+  )
+  ipcMain.handle(IPC.meetingGetTitle, () => ctx.meetingTitle.get())
+  ipcMain.handle(IPC.meetingSetTitle, (_e, title: unknown) => ctx.setMeetingTitle(title))
   // mở theo id (không nhận đường dẫn từ renderer) — chỉ mở được file của chính bản ghi
   ipcMain.handle(IPC.historyOpenFile, async (_e, id: string, kind: 'transcript' | 'summary') => {
     const rec = ctx.history.get(id)
