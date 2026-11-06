@@ -104,10 +104,10 @@ describe('summarizer', () => {
     const p = buildSummaryPrompt({
       incoming,
       outgoing: [],
-      meetingContext: 'Dự án Webike',
+      meetingContext: 'Dự án ABC',
       language: 'en'
     })
-    expect(p).toContain('Dự án Webike')
+    expect(p).toContain('Dự án ABC')
     expect(p).toContain('Tiếng Anh')
     expect(p).toContain('## Việc cần làm')
   })

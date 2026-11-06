@@ -6,7 +6,9 @@
 
 **Toàn bộ M1–M7 đã code xong.** Typecheck (TS strict) sạch, **38/38 unit tests** pass (VAD gate, subtitle store, WAV, state machine SessionManager, + push-to-talk & 2-instance độc lập), build production OK, app boot ổn định, installer NSIS đóng gói bằng `npm run dist`. **M7 (chiều đi: nói tiếng Việt → giọng đích vào meeting) đã CODE XONG 12/06/2026 — chờ kiểm chứng thủ công với VB-Cable + Meet 2 tài khoản.**
 
-**CI/CD (đã thiết lập):** GitHub Actions `ci.yml` (push main/PR → typecheck+test+build trên windows-latest) và `release.yml` (push tag `v*.*.*` → build + `electron-builder --publish always` tự tạo GitHub Release). `publish:` provider github cấu hình trong `electron-builder.yml`. Bản hiện tại **0.2.1** (đã thêm chống vọng, đổi thiết bị mặc định Windows, monitor, M7, fix auto-scroll khung phụ đề). Hướng dẫn release ở [README.md](README.md).
+**CI/CD (đã thiết lập):** GitHub Actions `ci.yml` (push main/PR → typecheck+test+build trên windows-latest) và `release.yml` (push tag `v*.*.*` → build + `electron-builder --publish always` tự tạo GitHub Release). `publish:` provider github cấu hình trong `electron-builder.yml`. Bản hiện tại **0.5.0** (thay đổi từng bản xem [CHANGELOG.md](CHANGELOG.md)). Hướng dẫn release ở [README.md](README.md).
+
+**Lộ trình tới 1.0:** xem [ROADMAP.md](ROADMAP.md).
 
 | Mốc | Code | Kiểm chứng tự động | Kiểm chứng thủ công (cần user) |
 |---|---|---|---|

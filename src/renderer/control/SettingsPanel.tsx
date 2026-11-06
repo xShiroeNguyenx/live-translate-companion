@@ -324,7 +324,7 @@ export function SettingsPanel({
           <span>Ngữ cảnh cuộc họp / thuật ngữ</span>
           <textarea
             rows={3}
-            placeholder={'VD: Họp dự án Webike với team Nhật.\n見積 → báo giá; 納期 → hạn giao hàng'}
+            placeholder={'VD: Họp dự án ABC với team Nhật.\n見積 → báo giá; 納期 → hạn giao hàng'}
             value={context}
             onChange={(e) => setContext(e.target.value)}
             onBlur={() => void patchSettings({ meetingContext: context })}

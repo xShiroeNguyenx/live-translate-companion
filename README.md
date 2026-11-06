@@ -108,7 +108,7 @@ Phiên quá ngắn (dưới ~200 ký tự bản dịch) sẽ được bỏ qua. 
 
 ### 6. Ngữ cảnh, thuật ngữ & từ khoá
 **Cài đặt → Ngữ cảnh & từ khoá**:
-- **Ngữ cảnh cuộc họp / thuật ngữ**: ví dụ `Họp dự án Webike với team Nhật. 見積 → báo giá`. App gửi kèm phiên dịch dưới dạng `systemInstruction`. Nếu model Live không nhận, app tự kết nối lại không có ngữ cảnh và hiện cảnh báo; bản tóm tắt thì luôn dùng ngữ cảnh.
+- **Ngữ cảnh cuộc họp / thuật ngữ**: ví dụ `Họp dự án ABC với team Nhật. 見積 → báo giá`. App gửi kèm phiên dịch dưới dạng `systemInstruction`. Nếu model Live không nhận, app tự kết nối lại không có ngữ cảnh và hiện cảnh báo; bản tóm tắt thì luôn dùng ngữ cảnh.
 - **Từ khoá cần chú ý**: ví dụ `Khánh, Khanh, カーン, deadline`. Câu có từ khoá được tô vàng trên phụ đề/overlay, và app hiện thông báo Windows nếu bạn đang ở cửa sổ khác. Không phân biệt hoa thường hay có dấu.
 
 ### 7. Chi phí & giới hạn
@@ -197,6 +197,10 @@ src/
 │  └─ engine/        # cửa sổ ẩn: loopback + mic capture (AudioWorklet) + phát 24kHz / CABLE
 └─ shared/           # types + IPC contract + constants + languages + keywords
 ```
+
+## Lộ trình
+
+Các bước tiếp theo tới bản 1.0 (thiết lập dễ hơn, dùng trọn trong cuộc họp, dịch đúng thuật ngữ, giao diện tiếng Anh): xem [ROADMAP.md](ROADMAP.md).
 
 ## License
 
