@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppSettings, HistoryRecord, SubtitleSegment } from '../../shared/types'
+import type { FlashResult } from '../gemini/flash'
 import { HistoryStore } from '../history/history-store'
 import { DEFAULT_SETTINGS } from '../settings'
-import { buildSummaryPrompt, mergeTranscript } from './summarizer'
+import { buildSummaryPrompt, mergeTranscript, transcriptLines } from './summarizer'
 import { SummaryService } from './summary-service'
 
 vi.mock('electron', () => ({ app: { getPath: () => tmpdir() } }))
@@ -50,7 +51,7 @@ describe('summarizer', () => {
   ])
 
   it('trộn 2 chiều theo thời gian, bỏ lời chiều đi ngoài khoảng phiên', () => {
-    const text = mergeTranscript({ incoming, outgoing: [outgoing], meetingContext: '', language: 'vi' })
+    const text = mergeTranscript({ incoming, outgoing: [outgoing] })
     expect(text.split('\n')).toEqual([
       '[00:00:01] Meeting: こんにちは (dịch: Xin chào)',
       '[00:00:30] Tôi: Tôi đồng ý (dịch: 賛成です)',
@@ -75,6 +76,28 @@ describe('summarizer', () => {
     expect(
       buildSummaryPrompt({ incoming, outgoing: [], meetingContext: '', language: 'vi' })
     ).not.toContain('TẠM DỪNG DỊCH')
+  })
+
+  it('clock wall: giờ máy HH:MM, đánh dấu dòng tạm dừng', () => {
+    const t0 = new Date(2026, 10, 6, 14, 30, 0).getTime()
+    const lines = transcriptLines(
+      {
+        incoming: {
+          startedAt: t0,
+          endedAt: t0 + 3_600_000,
+          segments: [
+            seg(t0 + 60_000, 'はい', 'Vâng'),
+            { ...seg(t0 + 120_000, '', ''), pauseEndedAt: t0 + 180_000 }
+          ]
+        },
+        outgoing: []
+      },
+      { clock: 'wall' }
+    )
+    expect(lines.map((l) => [l.text, l.pause])).toEqual([
+      ['[14:31] Meeting: はい (dịch: Vâng)', false],
+      ['[14:32] (TẠM DỪNG DỊCH 1 phút — đoạn này không có transcript)', true]
+    ])
   })
 
   it('prompt chứa ngữ cảnh + ngôn ngữ đầu ra', () => {
@@ -102,13 +125,18 @@ describe('SummaryService', () => {
     const history = new HistoryStore(join(dir, 'history'))
     const transcriptFile = join(dir, `${id}.txt`)
     history.upsert({ ...rec(id, 'incoming', 0, 1, [seg(0, 'a', 'b')]), transcriptFile })
-    const generate = vi.fn(async () => '## Tóm tắt\n- ok')
+    const generate = vi.fn(async () => ({
+      text: '## Tóm tắt\n- ok',
+      usage: { inputTokens: 1_000_000, outputTokens: 100_000 }
+    }))
+    const onCost = vi.fn()
     const settings: AppSettings = { ...DEFAULT_SETTINGS, summaryModel: 'm-test' }
     const svc = new SummaryService({
       history,
       getApiKey: () => 'k',
       getSettings: () => settings,
       fallbackDir: () => dir,
+      onCost,
       generate
     })
     const statuses: string[] = []
@@ -117,10 +145,30 @@ describe('SummaryService', () => {
     expect(result.ok).toBe(true)
     expect(generate).toHaveBeenCalledWith('k', 'm-test', expect.any(String), 'v1beta')
     expect(statuses).toEqual(['running', 'done'])
+    // 1M input × $1.5 + 0.1M output × $7.5
+    expect(onCost).toHaveBeenCalledWith(expect.closeTo(2.25, 6))
     const saved = history.get(id)
     expect(saved?.summary).toContain('ok')
     expect(saved?.summaryFile).toBe(join(dir, `${id}_tom-tat.md`))
     expect(readFileSync(saved!.summaryFile!, 'utf-8')).toContain('## Tóm tắt')
+  })
+
+  it('model trả về rỗng → lỗi, nhưng vẫn ghi chi phí', async () => {
+    const history = new HistoryStore(join(dir, 'history'))
+    history.upsert(rec('e', 'incoming', 0, 1, [seg(0, 'a', 'b')]))
+    const onCost = vi.fn()
+    const svc = new SummaryService({
+      history,
+      getApiKey: () => 'k',
+      getSettings: () => DEFAULT_SETTINGS,
+      fallbackDir: () => dir,
+      onCost,
+      generate: async () => ({ text: '', usage: { inputTokens: 2000, outputTokens: 0 } })
+    })
+    const result = await svc.summarize('e')
+    expect(result).toEqual({ ok: false, error: 'Model không trả về nội dung tóm tắt' })
+    expect(onCost).toHaveBeenCalledWith(expect.closeTo(0.003, 9))
+    expect(history.get('e')?.summary).toBeUndefined()
   })
 
   it('lỗi model → status error, không ghi summary', async () => {
@@ -146,8 +194,8 @@ describe('SummaryService', () => {
     let release: () => void = () => {}
     const generate = vi.fn(
       () =>
-        new Promise<string>((resolve) => {
-          release = () => resolve('ok')
+        new Promise<FlashResult>((resolve) => {
+          release = () => resolve({ text: 'ok', usage: { inputTokens: 0, outputTokens: 0 } })
         })
     )
     const svc = new SummaryService({

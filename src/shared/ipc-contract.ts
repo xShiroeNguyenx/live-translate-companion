@@ -1,6 +1,8 @@
 import type { LiveModelInfo } from './gemini-api'
 import type {
   AppSettings,
+  AssistantAskResult,
+  AssistantReplyResult,
   AudioInputDeviceInfo,
   AudioOutputDeviceInfo,
   ExportFormat,
@@ -10,6 +12,7 @@ import type {
   OutgoingConfig,
   PlaybackConfig,
   PlaybackSinkState,
+  QaTurn,
   SessionStateInfo,
   SubtitleUpdate,
   SummaryStatus,
@@ -54,6 +57,9 @@ export const IPC = {
   historyOpenFile: 'history:openFile',
   usageGet: 'usage:get',
   modelsListLive: 'models:listLive',
+  assistantAsk: 'assistant:ask',
+  assistantReplies: 'assistant:replies',
+  clipboardWrite: 'clipboard:write',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -134,6 +140,11 @@ export interface ControlApi {
   getUsage(): Promise<UsageSummary>
   // model dịch Live mà API key dùng được, theo API version đang chọn
   listLiveModels(): Promise<ListLiveModelsResult>
+  // trợ lý cuộc họp, dựa trên transcript chiều về đang có (previous: các lượt hỏi đáp trước, cũ → mới)
+  askAssistant(question: string, previous: QaTurn[]): Promise<AssistantAskResult>
+  suggestReplies(): Promise<AssistantReplyResult>
+  // ghi clipboard qua main (renderer bị chặn quyền clipboard)
+  copyText(text: string): Promise<void>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void

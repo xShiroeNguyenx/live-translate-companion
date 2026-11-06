@@ -408,7 +408,7 @@ export function SettingsPanel({
         </div>
         <p className="hint">
           Mỗi phiên 1 file (…_chieu-ve / …_chieu-di), ghi liên tục nên không mất nội dung khi app
-          tắt đột ngột. Tóm tắt lưu thành …_tom-tat.md cạnh transcript; phiên quá ngắn sẽ bỏ qua.
+          tắt đột ngột. Tóm tắt lưu thành …_tom-tat.md cạnh transcript; phiên quá ngắn sẽ bỏ qua. Model này dùng cho cả tóm tắt lẫn Trợ lý cuộc họp (tab Dịch).
         </p>
       </section>
 

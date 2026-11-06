@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0] — 2026-11-06
+
+### Thêm mới
+- **Trợ lý cuộc họp** trên tab Dịch, dựa trên phần đã dịch của chiều về. Dùng được khi đang dịch, khi tạm dừng, và cả sau khi bấm Dừng (cho tới lần Bắt đầu sau). Không cần bật Tự lưu.
+  - **Hỏi về cuộc họp:** gõ câu hỏi, ví dụ "Họ vừa chốt hạn ngày nào?". Câu trả lời ngắn, kèm giờ để đối chiếu, ví dụ "(lúc 14:32)". Chuyện không có trong transcript thì trợ lý nói là không thấy chứ không đoán.
+  - Hỏi nối tiếp được ("còn phương án 2 thì sao?"): 3 lượt hỏi đáp gần nhất được gửi kèm.
+  - **💬 Gợi ý trả lời:** đọc khoảng 3 phút gần nhất, nêu điều người khác vừa hỏi, rồi soạn 3 câu trả lời theo 3 hướng khác nhau. Mỗi câu có bản theo ngôn ngữ của bạn và bản theo ngôn ngữ của chiều đi (mặc định tiếng Nhật, thể です/ます), kèm nút Copy để dán vào chat meeting.
+  - Lời bạn nói qua chiều đi cũng được tính vào ngữ cảnh. Ngữ cảnh / thuật ngữ trong Cài đặt cũng được dùng.
+  - Dùng model của mục tóm tắt (mặc định `gemini-flash-latest`).
+  - Bắt đầu phiên dịch mới thì khung trợ lý được xoá.
+
+### Thay đổi
+- **Chi phí tóm tắt và trợ lý nay được tính vào chi phí ngày/tháng và giới hạn tháng.** Trước đây chỉ tính phần dịch Live.
+  - Ước tính theo số token mà Gemini báo về, ở giá chuẩn của Gemini Flash ($1,50 / 1 triệu token vào, $7,50 / 1 triệu token ra), nên có thể cao hơn thực tế khi Google đang giảm giá.
+  - Khi đã chạm giới hạn tháng, trợ lý từ chối hỏi. Tóm tắt cuối phiên vẫn chạy.
+
 ## [0.4.3] — 2026-11-06
 
 ### Sửa lỗi

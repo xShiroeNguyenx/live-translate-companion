@@ -1,16 +1,30 @@
-import { GoogleGenAI } from '@google/genai'
-import { normalizeApiVersion, type GeminiApiVersion } from '../../shared/gemini-api'
+import { generateFlash, type FlashResult } from '../gemini/flash'
+import type { GeminiApiVersion } from '../../shared/gemini-api'
 import { languageLabel } from '../../shared/languages'
-import { formatPauseDuration, isPauseMarker } from '../../shared/pause'
+import { formatPauseDuration, isPauseMarker, wallClock } from '../../shared/pause'
 import type { HistoryRecord, SubtitleSegment } from '../../shared/types'
 
-export interface SummaryInput {
+// Transcript 2 chiều: phiên chiều về + lời chiều đi ("Tôi") chạy chồng thời gian.
+// HistoryRecord thoả kiểu này; trợ lý cuộc họp dựng nó từ store đang chạy.
+export interface TranscriptInput {
+  incoming: { segments: SubtitleSegment[]; startedAt: number; endedAt: number }
+  outgoing: { segments: SubtitleSegment[] }[]
+}
+
+export interface SummaryInput extends TranscriptInput {
   // phiên chiều về cần tóm tắt
   incoming: HistoryRecord
   // các phiên chiều đi chạy chồng thời gian — lời của "Tôi"
   outgoing: HistoryRecord[]
   meetingContext: string
   language: string
+}
+
+export interface TranscriptLine {
+  at: number
+  // dòng đã định dạng, có giờ ở đầu
+  text: string
+  pause: boolean
 }
 
 interface Line {
@@ -25,9 +39,15 @@ function clock(ms: number): string {
   return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`
 }
 
-// Trộn 2 chiều theo thời gian; chỉ lấy lời chiều đi nằm trong khoảng của phiên chiều về
-export function mergeTranscript(input: SummaryInput): string {
+// Trộn 2 chiều theo thời gian; chỉ lấy lời chiều đi nằm trong khoảng của phiên chiều về.
+// clock 'relative' = tính từ đầu phiên (00:12:30), 'wall' = giờ máy (14:32)
+export function transcriptLines(
+  input: TranscriptInput,
+  opts: { clock?: 'relative' | 'wall' } = {}
+): TranscriptLine[] {
   const { incoming } = input
+  const stamp = (at: number): string =>
+    opts.clock === 'wall' ? wallClock(at) : clock(at - incoming.startedAt)
   const lines: Line[] = incoming.segments.map((seg) => ({
     at: seg.startedAt,
     speaker: 'Meeting',
@@ -48,13 +68,22 @@ export function mergeTranscript(input: SummaryInput): string {
     .map((l) => {
       if (isPauseMarker(l.seg)) {
         const duration = formatPauseDuration(l.seg.pauseEndedAt - l.seg.startedAt)
-        return `[${clock(l.at - incoming.startedAt)}] (TẠM DỪNG DỊCH ${duration} — đoạn này không có transcript)`
+        return {
+          at: l.at,
+          pause: true,
+          text: `[${stamp(l.at)}] (TẠM DỪNG DỊCH ${duration} — đoạn này không có transcript)`
+        }
       }
       const src = l.seg.source.text.trim()
       const tgt = l.seg.target.text.trim()
       const text = src && tgt ? `${src} (dịch: ${tgt})` : src || tgt
-      return `[${clock(l.at - incoming.startedAt)}] ${l.speaker}: ${text}`
+      return { at: l.at, pause: false, text: `[${stamp(l.at)}] ${l.speaker}: ${text}` }
     })
+}
+
+export function mergeTranscript(input: TranscriptInput): string {
+  return transcriptLines(input)
+    .map((l) => l.text)
     .join('\n')
 }
 
@@ -81,22 +110,12 @@ export function buildSummaryPrompt(input: SummaryInput): string {
     .join('\n')
 }
 
-export async function generateSummary(
+// text có thể rỗng — SummaryService ghi chi phí trước rồi mới báo lỗi
+export function generateSummary(
   apiKey: string,
   model: string,
   prompt: string,
   apiVersion?: GeminiApiVersion
-): Promise<string> {
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: { apiVersion: normalizeApiVersion(apiVersion) }
-  })
-  const res = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: { temperature: 0.3 }
-  })
-  const text = res.text?.trim()
-  if (!text) throw new Error('Model không trả về nội dung tóm tắt')
-  return text
+): Promise<FlashResult> {
+  return generateFlash({ apiKey, model, prompt, apiVersion, temperature: 0.3 })
 }

@@ -9,12 +9,14 @@ import {
   SUMMARY_MIN_CHARS
 } from '../shared/constants'
 import { IPC } from '../shared/ipc-contract'
+import { countSpokenSegments } from '../shared/pause'
 import type {
   AppSettings,
   SessionDirection,
   UpdateStatus,
   UsageSummary
 } from '../shared/types'
+import { AssistantService } from './assistant/assistant-service'
 import { DebugRecorder } from './debug-recorder'
 import { buildContextInstruction, SdkLiveClient } from './gemini/client'
 import { RawWsLiveClient } from './gemini/raw-ws-client'
@@ -24,6 +26,7 @@ import { registerIpc } from './ipc'
 import { KeywordNotifier } from './keyword-notifier'
 import { getApiKey } from './secrets'
 import { SettingsStore } from './settings'
+import type { TranscriptInput } from './summary/summarizer'
 import { SummaryService } from './summary/summary-service'
 import {
   TranscriptAutoSaver,
@@ -200,47 +203,6 @@ if (gotLock) {
       }
     })
 
-    // ── Tóm tắt cuộc họp ──
-    const summary = new SummaryService({
-      history,
-      getApiKey: () => getApiKey(),
-      getSettings: () => settings.get(),
-      fallbackDir: getAutoSaveDir
-    })
-    summary.on('status', (status) => {
-      sendToControl(IPC.evSummaryStatus, status)
-      if (status.state === 'done' && !control.isFocused()) {
-        notify('📝 Đã tóm tắt cuộc họp', 'Mở tab Lịch sử để xem.')
-      }
-    })
-    history.on('change', () => sendToControl(IPC.evHistoryChanged, null))
-
-    const maybeAutoSummarize = (): void => {
-      const s = settings.get()
-      const id = incomingSaver.currentSession?.id
-      if (!s.autoSummary || !s.autoSaveEnabled || !id) return
-      const chars = store.history().reduce((n, seg) => n + seg.target.text.trim().length, 0)
-      if (chars < SUMMARY_MIN_CHARS) return
-      // bản "tóm tắt đến giờ" còn đang chạy → xếp hàng, chạy lại với transcript đầy đủ
-      void summary.summarize(id, { queueIfRunning: true })
-    }
-
-    // "Tóm tắt đến giờ": tóm tắt phần đã dịch mà không dừng phiên (bản cuối vẫn chạy khi Dừng)
-    const summarizeCurrent = async (): Promise<{ ok: boolean; error?: string }> => {
-      if (!sessions.isStarted()) return { ok: false, error: 'Chưa có phiên dịch chiều về đang chạy.' }
-      if (!settings.get().autoSaveEnabled) {
-        return { ok: false, error: 'Cần bật “Tự lưu transcript” (tab Cài đặt) mới tóm tắt được.' }
-      }
-      const hasText = store.history().some((seg) => seg.target.text.trim() || seg.source.text.trim())
-      if (!hasText) return { ok: false, error: 'Chưa có nội dung để tóm tắt.' }
-      // ghi đĩa ngay để bản ghi lịch sử có đủ phần mới nhất (cả lời chiều đi chạy song song)
-      incomingSaver.flush()
-      outgoingSaver.flush()
-      const id = incomingSaver.currentSession?.id
-      if (!id) return { ok: false, error: 'Chưa lưu được transcript nên chưa tóm tắt được.' }
-      return summary.summarize(id)
-    }
-
     // ── Chi phí + giới hạn tháng ──
     const usage = new UsageTracker(join(app.getPath('userData'), 'usage.json'))
     const usageSummary = (): UsageSummary => ({
@@ -280,6 +242,81 @@ if (gotLock) {
       sendToControl(IPC.evUsageUpdate, usageSummary())
       checkBudget()
     }
+
+    // tóm tắt + trợ lý (Gemini Flash) cũng tính vào chi phí ngày/tháng và giới hạn tháng
+    const recordFlashCost = (usd: number): void => {
+      if (!(usd > 0)) return
+      usage.add(usd)
+      sendToControl(IPC.evUsageUpdate, usageSummary())
+      checkBudget()
+    }
+
+    // ── Tóm tắt cuộc họp ──
+    const summary = new SummaryService({
+      history,
+      getApiKey: () => getApiKey(),
+      getSettings: () => settings.get(),
+      fallbackDir: getAutoSaveDir,
+      onCost: recordFlashCost
+    })
+    summary.on('status', (status) => {
+      sendToControl(IPC.evSummaryStatus, status)
+      if (status.state === 'done' && !control.isFocused()) {
+        notify('📝 Đã tóm tắt cuộc họp', 'Mở tab Lịch sử để xem.')
+      }
+    })
+    history.on('change', () => sendToControl(IPC.evHistoryChanged, null))
+
+    const maybeAutoSummarize = (): void => {
+      const s = settings.get()
+      const id = incomingSaver.currentSession?.id
+      if (!s.autoSummary || !s.autoSaveEnabled || !id) return
+      const chars = store.history().reduce((n, seg) => n + seg.target.text.trim().length, 0)
+      if (chars < SUMMARY_MIN_CHARS) return
+      // bản "tóm tắt đến giờ" còn đang chạy → xếp hàng, chạy lại với transcript đầy đủ
+      void summary.summarize(id, { queueIfRunning: true })
+    }
+
+    // "Tóm tắt đến giờ": tóm tắt phần đã dịch mà không dừng phiên (bản cuối vẫn chạy khi Dừng)
+    const summarizeCurrent = async (): Promise<{ ok: boolean; error?: string }> => {
+      if (!sessions.isStarted()) return { ok: false, error: 'Chưa có phiên dịch chiều về đang chạy.' }
+      if (!settings.get().autoSaveEnabled) {
+        return { ok: false, error: 'Cần bật “Tự lưu transcript” (tab Cài đặt) mới tóm tắt được.' }
+      }
+      const hasText = store.history().some((seg) => seg.target.text.trim() || seg.source.text.trim())
+      if (!hasText) return { ok: false, error: 'Chưa có nội dung để tóm tắt.' }
+      // ghi đĩa ngay để bản ghi lịch sử có đủ phần mới nhất (cả lời chiều đi chạy song song)
+      incomingSaver.flush()
+      outgoingSaver.flush()
+      const id = incomingSaver.currentSession?.id
+      if (!id) return { ok: false, error: 'Chưa lưu được transcript nên chưa tóm tắt được.' }
+      return summary.summarize(id)
+    }
+
+    // ── Trợ lý cuộc họp: hỏi đáp + gợi ý trả lời ──
+    // transcript trong bộ nhớ: phiên đang chạy/tạm dừng, hoặc phiên vừa dừng (tới lần Bắt đầu sau).
+    // Không cần bật Tự lưu.
+    const liveTranscript = (): TranscriptInput | null => {
+      const segments = store.history()
+      if (countSpokenSegments(segments) === 0) return null
+      const first = segments[0].startedAt
+      const started = sessions.getStartedAt()
+      return {
+        incoming: {
+          segments,
+          startedAt: started > 0 ? Math.min(started, first) : first,
+          endedAt: Date.now()
+        },
+        outgoing: [{ segments: outgoingStore.history() }]
+      }
+    }
+    const assistant = new AssistantService({
+      getApiKey: () => getApiKey(),
+      getSettings: () => settings.get(),
+      getTranscript: liveTranscript,
+      budgetError,
+      onCost: recordFlashCost
+    })
 
     const guardedStart = async (
       manager: SessionManager
@@ -478,6 +515,7 @@ if (gotLock) {
       updater,
       history,
       summary,
+      assistant,
       usageSummary,
       getAutoSaveDir,
       controlWindow: control,

@@ -569,3 +569,79 @@ button.danger:hover:not(:disabled) {
 .placeholder.static {
   margin: 12px 0;
 }
+
+/* ── Trợ lý cuộc họp ── */
+.assistant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.assistant-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #0d1117;
+  border-radius: 6px;
+  padding: 6px 8px;
+  user-select: text;
+}
+
+.assistant-q {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.assistant-time {
+  flex-shrink: 0;
+  color: #6b7280;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.assistant-answer {
+  white-space: pre-wrap;
+  color: #f3f4f6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.assistant-error {
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.assistant-asked {
+  color: #9ca3af;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-left: 3px solid #22c55e;
+  padding-left: 8px;
+}
+
+.suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion .mine {
+  color: #f3f4f6;
+  font-size: 13px;
+}
+
+.suggestion .theirs {
+  color: #86efac;
+  font-size: 13px;
+}

@@ -113,6 +113,35 @@ export interface SummaryStatus {
   error?: string
 }
 
+// ── Trợ lý cuộc họp ──
+export interface QaTurn {
+  question: string
+  answer: string
+}
+
+export interface ReplySuggestion {
+  // câu trả lời bằng ngôn ngữ của người dùng (đích chiều về)
+  text: string
+  // cùng ý, bằng ngôn ngữ nói vào meeting (đích chiều đi); rỗng khi 2 ngôn ngữ trùng nhau
+  translation: string
+}
+
+export interface AssistantAskResult {
+  ok: boolean
+  answer?: string
+  error?: string
+}
+
+export interface AssistantReplyResult {
+  ok: boolean
+  // điều người khác vừa hỏi/đề nghị, theo cách model hiểu
+  asked?: string
+  suggestions?: ReplySuggestion[]
+  // mã ngôn ngữ của `translation` (đích chiều đi)
+  replyLanguage?: string
+  error?: string
+}
+
 export interface UsageSummary {
   todayUsd: number
   monthUsd: number

@@ -31,6 +31,22 @@ export const DEFAULT_SUMMARY_MODEL = 'gemini-flash-latest'
 export const SUMMARY_MIN_CHARS = 200
 export const BUDGET_WARN_RATIO = 0.8
 
+// Giá Gemini Flash (tóm tắt + trợ lý cuộc họp), USD / 1 triệu token — theo
+// ai.google.dev/gemini-api/docs/pricing (tra 2026-11-06). Lấy giá CHUẨN chứ không lấy giá khuyến
+// mãi, để ước tính không thấp hơn thực tế; token "thinking" tính như output.
+export const FLASH_PRICE_USD_PER_M_INPUT = 1.5
+export const FLASH_PRICE_USD_PER_M_OUTPUT = 7.5
+
+// Trợ lý cuộc họp (hỏi đáp + gợi ý trả lời) dựa trên transcript đang có
+// ~30–40k token; transcript dài hơn thì giữ phần gần nhất
+export const ASSISTANT_MAX_TRANSCRIPT_CHARS = 120_000
+// "đoạn gần nhất" để gợi ý trả lời: 3 phút cuối, nhưng ít nhất 6 câu có lời
+export const ASSISTANT_RECENT_MS = 3 * 60 * 1000
+export const ASSISTANT_RECENT_MIN_LINES = 6
+export const ASSISTANT_MAX_QUESTION_CHARS = 500
+// số lượt hỏi đáp trước gửi kèm để hỏi nối tiếp ("còn phương án 2 thì sao?")
+export const ASSISTANT_PREVIOUS_TURNS = 3
+
 // Chiều đi (nói tiếng Việt → giọng đích vào meeting)
 export const OUTGOING_DEFAULT_TARGET = 'ja'
 export const OUTGOING_PTT_SHORTCUT = 'CommandOrControl+Space'

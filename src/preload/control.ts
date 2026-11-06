@@ -7,6 +7,7 @@ import type {
   ExportFormat,
   Metrics,
   PlaybackSinkState,
+  QaTurn,
   SessionStateInfo,
   SubtitleUpdate,
   SummaryStatus,
@@ -61,6 +62,10 @@ const api: ControlApi = {
     ipcRenderer.invoke('history:openFile', id, kind),
   getUsage: () => ipcRenderer.invoke('usage:get'),
   listLiveModels: () => ipcRenderer.invoke('models:listLive'),
+  askAssistant: (question: string, previous: QaTurn[]) =>
+    ipcRenderer.invoke('assistant:ask', question, previous),
+  suggestReplies: () => ipcRenderer.invoke('assistant:replies'),
+  copyText: (text: string) => ipcRenderer.invoke('clipboard:write', text),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),
   onSubtitleUpdate: (cb: (u: SubtitleUpdate) => void) => subscribe('subtitle:update', cb),
   onMetrics: (cb: (m: Metrics) => void) => subscribe('metrics:update', cb),

@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
+import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { IPC, type ListLiveModelsResult } from '../shared/ipc-contract'
 import type { Updater } from './updater'
@@ -14,6 +14,7 @@ import {
   listWindowsOutputDevices,
   setWindowsDefaultOutputDevice
 } from './audio/windows-default-device'
+import type { AssistantService } from './assistant/assistant-service'
 import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
 import type { SummaryService } from './summary/summary-service'
@@ -37,6 +38,7 @@ export interface IpcContext {
   summarizeCurrent(): Promise<{ ok: boolean; error?: string }>
   history: HistoryStore
   summary: SummaryService
+  assistant: AssistantService
   usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
@@ -102,6 +104,14 @@ export function registerIpc(ctx: IpcContext): void {
     if (file && existsSync(file)) await shell.openPath(file)
   })
   ipcMain.handle(IPC.usageGet, () => ctx.usageSummary())
+
+  ipcMain.handle(IPC.assistantAsk, (_e, question: unknown, previous: unknown) =>
+    ctx.assistant.ask(question, previous)
+  )
+  ipcMain.handle(IPC.assistantReplies, () => ctx.assistant.suggestReplies())
+  ipcMain.handle(IPC.clipboardWrite, (_e, text: unknown) => {
+    if (typeof text === 'string') clipboard.writeText(text.slice(0, 10_000))
+  })
 
   ipcMain.handle(IPC.modelsListLive, async (): Promise<ListLiveModelsResult> => {
     const apiKey = getApiKey()

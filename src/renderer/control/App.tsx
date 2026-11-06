@@ -3,6 +3,7 @@ import { INCOMING_PAUSE_SHORTCUT, INCOMING_TOGGLE_SHORTCUT } from '../../shared/
 import { parseKeywords } from '../../shared/keywords'
 import { languageShort } from '../../shared/languages'
 import type { ExportFormat } from '../../shared/types'
+import { AssistantPanel } from './AssistantPanel'
 import { HistoryPanel } from './HistoryPanel'
 import { OutgoingPanel } from './OutgoingPanel'
 import { SettingsPanel } from './SettingsPanel'
@@ -20,7 +21,7 @@ function UsageBar(): React.JSX.Element {
   const ratio = usage.budgetUsd > 0 ? Math.min(1, usage.monthUsd / usage.budgetUsd) : 0
   const level = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : ''
   return (
-    <div className="usage" title="Chi phí ước tính (cả 2 chiều)">
+    <div className="usage" title="Chi phí ước tính: dịch 2 chiều + tóm tắt + trợ lý cuộc họp">
       <span>💰 Hôm nay ${usage.todayUsd.toFixed(2)}</span>
       <span>
         Tháng ${usage.monthUsd.toFixed(2)}
@@ -287,6 +288,8 @@ export function App(): React.JSX.Element {
               )}
             </div>
           </section>
+
+          <AssistantPanel />
 
           <OutgoingPanel onOpenSettings={openSettings} />
         </>

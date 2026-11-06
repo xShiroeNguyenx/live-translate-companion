@@ -1,10 +1,13 @@
 import { create } from 'zustand'
+import { ASSISTANT_PREVIOUS_TURNS } from '../../shared/constants'
 import type {
   AppSettings,
+  AssistantReplyResult,
   AudioInputDeviceInfo,
   AudioOutputDeviceInfo,
   Metrics,
   PlaybackSinkState,
+  QaTurn,
   SessionStateInfo,
   SubtitleSegment,
   SubtitleUpdate,
@@ -15,6 +18,31 @@ import type {
 } from '../../shared/types'
 
 const MAX_SEGMENTS = 500
+const MAX_ASSISTANT_ITEMS = 30
+
+type AssistantItemState = 'running' | 'done' | 'error'
+
+// mục trong khung Trợ lý cuộc họp, mới nhất đứng đầu
+export type AssistantItem =
+  | {
+      id: number
+      kind: 'ask'
+      at: number
+      question: string
+      state: AssistantItemState
+      answer?: string
+      error?: string
+    }
+  | {
+      id: number
+      kind: 'reply'
+      at: number
+      state: AssistantItemState
+      result?: AssistantReplyResult
+      error?: string
+    }
+
+let assistantSeq = 0
 
 const EMPTY_METRICS: Metrics = {
   rmsDb: -100,
@@ -57,6 +85,11 @@ interface ControlState {
   // trạng thái tóm tắt gần nhất theo id phiên
   summaries: Record<string, SummaryStatus>
   lastSummary: SummaryStatus | null
+  // trợ lý cuộc họp — xoá khi bắt đầu phiên chiều về mới (transcript bị xoá)
+  assistantItems: AssistantItem[]
+  askAssistant(question: string): Promise<void>
+  suggestReplies(): Promise<void>
+  clearAssistant(): void
   init(): void
   setHasKey(v: boolean): void
   patchSettings(patch: Partial<AppSettings>): Promise<void>
@@ -65,6 +98,30 @@ interface ControlState {
 }
 
 const api = window.controlApi
+
+type SetState = (fn: (state: ControlState) => Partial<ControlState>) => void
+
+function addAssistantItem(set: SetState, item: AssistantItem): void {
+  set((s) => ({ assistantItems: [item, ...s.assistantItems].slice(0, MAX_ASSISTANT_ITEMS) }))
+}
+
+// mục đã bị xoá (bấm Xoá, hoặc phiên mới) trong lúc chờ → bỏ kết quả
+function patchAssistantItem(
+  set: SetState,
+  id: number,
+  patch: {
+    state: AssistantItemState
+    answer?: string
+    result?: AssistantReplyResult
+    error?: string
+  }
+): void {
+  set((s) => ({
+    assistantItems: s.assistantItems.map((i) =>
+      i.id === id ? ({ ...i, ...patch } as AssistantItem) : i
+    )
+  }))
+}
 
 export const useControlStore = create<ControlState>((set, get) => ({
   settings: null,
@@ -85,6 +142,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
   usage: { todayUsd: 0, monthUsd: 0, budgetUsd: 0 },
   summaries: {},
   lastSummary: null,
+  assistantItems: [],
 
   init: () => {
     if (!api) return
@@ -106,7 +164,11 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onInputDevices((inputDevices) => set({ inputDevices }))
     api.onPlaybackSinkState((sinkState) => set({ sinkState }))
     api.onSubtitleUpdate((update) =>
-      set((state) => ({ segments: applySubtitleUpdate(state.segments, update) }))
+      set((state) => ({
+        segments: applySubtitleUpdate(state.segments, update),
+        // phiên mới → câu trả lời về cuộc họp cũ không còn đúng ngữ cảnh
+        ...(update.type === 'clear' ? { assistantItems: [] } : {})
+      }))
     )
 
     api.onOutgoingState((outgoing) => set({ outgoing }))
@@ -127,6 +189,49 @@ export const useControlStore = create<ControlState>((set, get) => ({
   },
 
   setHasKey: (hasKey) => set({ hasKey }),
+
+  askAssistant: async (question) => {
+    if (!api) return
+    // vài lượt hỏi đáp gần nhất (cũ → mới) để hỏi nối tiếp được
+    const previous: QaTurn[] = get()
+      .assistantItems.flatMap((i) =>
+        i.kind === 'ask' && i.state === 'done' && i.answer
+          ? [{ question: i.question, answer: i.answer }]
+          : []
+      )
+      .slice(0, ASSISTANT_PREVIOUS_TURNS)
+      .reverse()
+    const id = ++assistantSeq
+    addAssistantItem(set, { id, kind: 'ask', at: Date.now(), question, state: 'running' })
+    try {
+      const r = await api.askAssistant(question, previous)
+      patchAssistantItem(
+        set,
+        id,
+        r.ok ? { state: 'done', answer: r.answer } : { state: 'error', error: r.error }
+      )
+    } catch (err) {
+      patchAssistantItem(set, id, { state: 'error', error: String(err) })
+    }
+  },
+
+  suggestReplies: async () => {
+    if (!api) return
+    const id = ++assistantSeq
+    addAssistantItem(set, { id, kind: 'reply', at: Date.now(), state: 'running' })
+    try {
+      const r = await api.suggestReplies()
+      patchAssistantItem(
+        set,
+        id,
+        r.ok ? { state: 'done', result: r } : { state: 'error', error: r.error }
+      )
+    } catch (err) {
+      patchAssistantItem(set, id, { state: 'error', error: String(err) })
+    }
+  },
+
+  clearAssistant: () => set({ assistantItems: [] }),
 
   patchSettings: async (patch) => {
     if (!api) return

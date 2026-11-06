@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AppSettings, HistoryRecord, SummaryStatus } from '../../shared/types'
+import { flashCostUsd } from '../gemini/flash'
 import type { HistoryStore } from '../history/history-store'
 import { buildSummaryPrompt, generateSummary } from './summarizer'
 
@@ -11,6 +12,8 @@ export interface SummaryServiceDeps {
   getSettings(): AppSettings
   // thư mục ghi file tóm tắt khi phiên không có file transcript
   fallbackDir(): string
+  // chi phí ước tính (USD) của mỗi lần gọi model — cộng vào chi phí ngày/tháng
+  onCost?(usd: number): void
   generate?: typeof generateSummary
 }
 
@@ -66,12 +69,16 @@ export class SummaryService extends EventEmitter {
     this.running.add(id)
     this.emitStatus({ id, state: 'running' })
     try {
-      const summary = await (this.deps.generate ?? generateSummary)(
+      const res = await (this.deps.generate ?? generateSummary)(
         apiKey,
         s.summaryModel,
         prompt,
         s.apiVersion
       )
+      // model đã tính tiền kể cả khi trả về rỗng → ghi chi phí trước khi kiểm tra
+      this.deps.onCost?.(flashCostUsd(res.usage))
+      const summary = res.text
+      if (!summary) throw new Error('Model không trả về nội dung tóm tắt')
       const base = rec.transcriptFile
         ? rec.transcriptFile.replace(/\.[^./\\]+$/, '')
         : join(this.deps.fallbackDir(), id)
