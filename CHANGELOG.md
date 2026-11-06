@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.4.2] — 2026-11-06
+
+### Thêm mới
+- **Nút Tạm dừng / Tiếp tục cho chiều về.** Có trên tab Dịch, trong menu khay hệ thống, và phím tắt toàn cục `Ctrl+Alt+P`.
+  - Khi tạm dừng, app không gửi audio lên Gemini. Phụ đề, file transcript, mục Lịch sử và chi phí luỹ kế đều được giữ nguyên.
+  - Bấm Tiếp tục thì phần dịch mới được nối vào cùng transcript và cùng mục Lịch sử. Gemini cũng giữ ngữ cảnh của phần trước.
+  - Đồng hồ phiên đứng yên trong lúc tạm dừng.
+  - Tạm dừng không kích hoạt tóm tắt. App chỉ tóm tắt khi bấm Dừng.
+  - Nếu đang nói dở lúc bấm tạm dừng, câu đó vẫn được dịch nốt. Sau 15 giây, kết nối được đóng lại và sẽ tự nối lại khi bấm Tiếp tục.
+  - Tiếp tục cũng phải qua giới hạn chi phí tháng, giống như lúc bắt đầu.
+- **Biết rõ lúc nào đang tạm dừng.**
+  - Overlay phụ đề hiện nhãn "⏸ Đang tạm dừng dịch", nên vẫn thấy được khi Meet/Zoom đang full-screen.
+  - Tạm dừng hoặc tiếp tục bằng `Ctrl+Alt+P` hay từ khay hệ thống sẽ hiện thông báo Windows.
+- **Mốc tạm dừng trong transcript.**
+  - Mỗi lần tạm dừng để lại một dòng "⏸ Tạm dừng 14:30 → 14:45 (15 phút)".
+  - Dòng này có ở phụ đề, overlay, tab Lịch sử và các file .txt/.md/.srt.
+  - Bản tóm tắt được báo rằng đoạn đó không có transcript, nên không đoán nội dung đoạn đó.
+  - Nếu bấm Dừng khi đang tạm dừng thì không để lại mốc.
+- **Tạm dừng cho chiều đi.** Panel "Chiều đi" có nút Tạm dừng / Tiếp tục.
+  - Khi tạm dừng, phím `Ctrl+Space` được nhả ra cho app khác dùng.
+- **Tóm tắt đến giờ.** Nút "📝 Tóm tắt đến giờ" trên tab Dịch tóm tắt phần đã dịch mà không cần dừng phiên, hữu ích khi vào họp muộn hoặc lúc nghỉ giữa giờ.
+  - Khi bấm Dừng, bản tóm tắt cuối vẫn chạy và ghi đè bản tạm.
+  - Nếu bản tạm chưa xong, bản cuối được xếp hàng chạy tiếp chứ không bị bỏ qua.
+  - Cần bật "Tự lưu transcript".
+
+### Thay đổi
+- Số "câu" trong tab Lịch sử không đếm mốc tạm dừng.
+
+### Sửa lỗi
+- Nếu kết nối Gemini bị ngắt quá lâu (khoảng 2 giờ, ví dụ khi tạm dừng hoặc im lặng lâu), app mở phiên Gemini mới thay vì dùng lại mã nối phiên đã hết hạn.
+- Bấm Dừng đúng lúc app đang kết nối lại không còn để sót kết nối mở, và trạng thái không còn nhảy về "Chờ tiếng nói" sau khi đã dừng.
+
 ## [0.4.1] — 2026-10-29
 
 ### Thêm mới

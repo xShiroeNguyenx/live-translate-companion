@@ -1,5 +1,6 @@
 import type { SubtitleSegment } from '../../shared/types'
 import { findKeyword } from '../../shared/keywords'
+import { isPauseMarker, pauseLabel } from '../../shared/pause'
 import { dbToMeterPercent, useStickToBottom } from './ui-helpers'
 
 // Thanh đo mức âm thanh + vạch ngưỡng VAD
@@ -63,7 +64,12 @@ export function SegmentList({
   return (
     <div className={`subtitle-list ${className}`} ref={list.ref} onScroll={list.onScroll}>
       {segments.length === 0 && <p className="placeholder">{placeholder}</p>}
-      {segments.map((seg) => (
+      {segments.map((seg) =>
+        isPauseMarker(seg) ? (
+          <div key={seg.id} className="segment pause-marker">
+            ⏸ {pauseLabel(seg)}
+          </div>
+        ) : (
         <div
           key={seg.id}
           className={`segment ${seg.target.final ? 'final' : 'partial'} ${
@@ -75,7 +81,8 @@ export function SegmentList({
           {seg.source.text && <p className="src">{seg.source.text}</p>}
           {seg.target.text && <p className="tgt">{seg.target.text}</p>}
         </div>
-      ))}
+        )
+      )}
     </div>
   )
 }

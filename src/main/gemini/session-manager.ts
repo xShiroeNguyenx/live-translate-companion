@@ -1,5 +1,11 @@
 import { EventEmitter } from 'node:events'
-import { FRAME_MS, IDLE_DISCONNECT_MS, PRICE_USD_PER_MINUTE } from '../../shared/constants'
+import {
+  FRAME_MS,
+  IDLE_DISCONNECT_MS,
+  PAUSE_DISCONNECT_MS,
+  PRICE_USD_PER_MINUTE,
+  RESUMPTION_MAX_AGE_MS
+} from '../../shared/constants'
 import type { GeminiApiVersion } from '../../shared/gemini-api'
 import type { Metrics, SessionState, SessionStateInfo } from '../../shared/types'
 import type { SubtitleStore } from '../subtitles/store'
@@ -38,7 +44,11 @@ export class SessionManager extends EventEmitter {
   private session: GeminiLiveSession | null = null
   private connectPromise: Promise<void> | null = null
   private started = false
+  private paused = false
+  private pausedAt = 0
+  private pausedTotalMs = 0
   private resumptionHandle: string | undefined
+  private resumptionHandleAt = 0
   private clientIndex = 0
   private vad = new VadGate()
   private pttActive = false
@@ -74,6 +84,10 @@ export class SessionManager extends EventEmitter {
     return this.started
   }
 
+  isPaused(): boolean {
+    return this.paused
+  }
+
   getStartedAt(): number {
     return this.sessionStartedAt
   }
@@ -88,8 +102,12 @@ export class SessionManager extends EventEmitter {
       return { ok: false, error: 'Chưa cấu hình Gemini API key' }
     }
     this.started = true
+    this.paused = false
+    this.pausedAt = 0
+    this.pausedTotalMs = 0
     this.clientIndex = 0
     this.resumptionHandle = undefined
+    this.resumptionHandleAt = 0
     this.secondsSent = 0
     this.reconnects = 0
     this.backoffMs = 1000
@@ -121,6 +139,7 @@ export class SessionManager extends EventEmitter {
 
   async stop(finalState: SessionState = 'idle', error?: string): Promise<void> {
     this.started = false
+    this.paused = false
     if (this.metricsTimer) clearInterval(this.metricsTimer)
     if (this.goAwayTimer) clearTimeout(this.goAwayTimer)
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
@@ -145,12 +164,55 @@ export class SessionManager extends EventEmitter {
     this.setState(finalState, error)
   }
 
+  // Tạm dừng: ngừng gửi audio nhưng KHÔNG kết thúc phiên — phụ đề, file transcript, mục lịch sử,
+  // chi phí luỹ kế và resumption handle (ngữ cảnh Gemini) đều giữ nguyên để Tiếp tục nối vào.
+  // Capture vẫn chạy (khỏi phải xin lại loopback), frame bị bỏ ngay ở handleFrame.
+  pause(): void {
+    if (!this.started || this.paused) return
+    this.paused = true
+    this.pausedAt = Date.now()
+    this.pendingFrames = []
+    this.lastRmsDb = -100
+    if (this.goAwayTimer) clearTimeout(this.goAwayTimer)
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.goAwayTimer = this.reconnectTimer = null
+    // đang nói dở → báo hết lượt để Gemini dịch nốt câu đó (WS còn mở PAUSE_DISCONNECT_MS)
+    if (this.state === 'streaming' || this.pttActive) {
+      this.store.finalizeOpenSegment()
+      try {
+        this.session?.sendAudioStreamEnd()
+      } catch (err) {
+        console.error('audioStreamEnd lỗi:', err)
+      }
+    }
+    this.pttActive = false
+    this.vad.reset()
+    this.setState('paused')
+  }
+
+  resume(): void {
+    if (!this.started || !this.paused) return
+    const now = Date.now()
+    this.paused = false
+    this.pausedTotalMs += now - this.pausedAt
+    this.store.addPauseMarker(this.pausedAt, now)
+    this.pausedAt = 0
+    this.lastVoiceAt = Date.now()
+    this.vad.reset()
+    this.setState('gated')
+    if (this.session) return
+    // hâm nóng kết nối (thường đã đóng sau PAUSE_DISCONNECT_MS) để câu đầu tiên không bị trễ
+    void this.ensureConnected()
+      .then(() => this.setActiveState())
+      .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
+  }
+
   private gateMode(): 'vad' | 'ptt' {
     return this.deps.getGateMode?.() ?? 'vad'
   }
 
   handleFrame(pcm: ArrayBuffer, rmsDb: number, _ts: number): void {
-    if (!this.started) return
+    if (!this.started || this.paused) return
     this.lastRmsDb = rmsDb
 
     // Push-to-talk: bỏ qua VAD, chỉ gửi khi đang giữ nút nói
@@ -184,7 +246,7 @@ export class SessionManager extends EventEmitter {
 
   // Nút "Giữ để nói" (chiều đi): true khi nhấn, false khi nhả → gửi audioStreamEnd
   setPushToTalk(active: boolean): void {
-    if (!this.started || this.gateMode() !== 'ptt') return
+    if (!this.started || this.paused || this.gateMode() !== 'ptt') return
     if (active === this.pttActive) return
     this.pttActive = active
     if (active) {
@@ -254,7 +316,7 @@ export class SessionManager extends EventEmitter {
       targetLanguage: this.deps.getTargetLanguage(),
       model: this.deps.getLiveModel?.(),
       apiVersion: this.deps.getApiVersion?.(),
-      resumptionHandle: this.resumptionHandle,
+      resumptionHandle: this.freshResumptionHandle(),
       systemInstruction: this.contextDisabled ? undefined : this.deps.getSystemInstruction?.(),
       callbacks: {
         onOpen: () => {},
@@ -264,6 +326,15 @@ export class SessionManager extends EventEmitter {
       }
     })
     box.session = session
+    // đã Dừng trong lúc đang kết nối → đóng luôn, đừng để WS mồ côi
+    if (!this.started) {
+      try {
+        session.close()
+      } catch {
+        /* đã đóng */
+      }
+      return
+    }
     this.session = session
     this.backoffMs = 1000
     const queued = this.pendingFrames
@@ -272,7 +343,10 @@ export class SessionManager extends EventEmitter {
   }
 
   private handleServerEvent(ev: LiveServerEvent): void {
-    if (ev.resumptionHandle) this.resumptionHandle = ev.resumptionHandle
+    if (ev.resumptionHandle) {
+      this.resumptionHandle = ev.resumptionHandle
+      this.resumptionHandleAt = Date.now()
+    }
     if (ev.inputTranscription) this.store.appendSource(ev.inputTranscription)
     if (ev.outputTranscription) this.store.appendTarget(ev.outputTranscription)
     if (ev.audioBase64) this.deps.onPlaybackChunk(Buffer.from(ev.audioBase64, 'base64'))
@@ -282,7 +356,8 @@ export class SessionManager extends EventEmitter {
 
   // GoAway: chủ động đóng và mở lại kết nối trước khi server cắt
   private scheduleRotation(timeLeftMs: number): void {
-    if (!this.started || this.goAwayTimer) return
+    // đang tạm dừng: kệ server đóng, Tiếp tục sẽ tự nối lại
+    if (!this.started || this.paused || this.goAwayTimer) return
     this.setState('draining')
     const delay = Math.max(0, timeLeftMs - GOAWAY_SAFETY_MS)
     this.goAwayTimer = setTimeout(() => {
@@ -292,7 +367,7 @@ export class SessionManager extends EventEmitter {
   }
 
   private async rotateSession(): Promise<void> {
-    if (!this.started) return
+    if (!this.started || this.paused) return
     this.store.finalizeOpenSegment()
     const old = this.session
     this.session = null
@@ -304,7 +379,7 @@ export class SessionManager extends EventEmitter {
     this.reconnects += 1
     try {
       await this.ensureConnected()
-      this.setState(this.vad.open ? 'streaming' : 'gated')
+      this.setActiveState()
     } catch (err) {
       this.scheduleReconnect(err instanceof Error ? err.message : String(err))
     }
@@ -317,11 +392,13 @@ export class SessionManager extends EventEmitter {
     if (box.session && box.session !== this.session) return
     this.session = null
     if (!this.started) return
+    // tạm dừng thì không nối lại ngay — resume() lo việc đó
+    if (this.paused) return
 
     if (this.disableContextIfRejected(ev.reason)) {
       this.reconnects += 1
       void this.ensureConnected()
-        .then(() => this.setState(this.vad.open ? 'streaming' : 'gated'))
+        .then(() => this.setActiveState())
         .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
       return
     }
@@ -331,7 +408,7 @@ export class SessionManager extends EventEmitter {
       console.warn('SDK bị từ chối translationConfig — chuyển sang raw WebSocket client')
       this.reconnects += 1
       void this.ensureConnected()
-        .then(() => this.setState(this.vad.open ? 'streaming' : 'gated'))
+        .then(() => this.setActiveState())
         .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
       return
     }
@@ -349,15 +426,15 @@ export class SessionManager extends EventEmitter {
   }
 
   private scheduleReconnect(reason: string): void {
-    if (!this.started || this.reconnectTimer) return
+    if (!this.started || this.paused || this.reconnectTimer) return
     console.warn('Sẽ kết nối lại sau', this.backoffMs, 'ms —', reason)
     this.setState('reconnecting')
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      if (!this.started) return
+      if (!this.started || this.paused) return
       this.reconnects += 1
       void this.ensureConnected()
-        .then(() => this.setState(this.vad.open ? 'streaming' : 'gated'))
+        .then(() => this.setActiveState())
         .catch((err) => {
           this.backoffMs = Math.min(this.backoffMs * 2, MAX_BACKOFF_MS)
           this.scheduleReconnect(err instanceof Error ? err.message : String(err))
@@ -366,12 +443,12 @@ export class SessionManager extends EventEmitter {
   }
 
   private onMetricsTick(): void {
-    // Im lặng kéo dài: đóng WS để khỏi giữ kết nối, resumption handle còn hạn 2h
-    if (
-      this.session &&
-      this.state === 'gated' &&
-      Date.now() - this.lastVoiceAt > IDLE_DISCONNECT_MS
-    ) {
+    // Im lặng kéo dài / tạm dừng: đóng WS để khỏi giữ kết nối, resumption handle còn hạn ~2h
+    const now = Date.now()
+    const idle = this.paused
+      ? now - this.pausedAt > PAUSE_DISCONNECT_MS
+      : this.state === 'gated' && now - this.lastVoiceAt > IDLE_DISCONNECT_MS
+    if (this.session && idle) {
       const session = this.session
       this.session = null
       try {
@@ -388,9 +465,31 @@ export class SessionManager extends EventEmitter {
       rmsDb: Math.round(this.lastRmsDb * 10) / 10,
       secondsSent: Math.round(this.secondsSent * 10) / 10,
       estimatedCostUsd: (this.secondsSent / 60) * PRICE_USD_PER_MINUTE,
-      sessionSeconds: this.started ? Math.floor((Date.now() - this.sessionStartedAt) / 1000) : 0,
+      sessionSeconds: this.activeSeconds(),
       reconnects: this.reconnects
     }
+  }
+
+  // thời lượng phiên KHÔNG tính khoảng tạm dừng (đồng hồ đứng yên khi tạm dừng)
+  private activeSeconds(): number {
+    if (!this.started) return 0
+    const now = Date.now()
+    const pausedMs = this.pausedTotalMs + (this.paused ? now - this.pausedAt : 0)
+    return Math.max(0, Math.floor((now - this.sessionStartedAt - pausedMs) / 1000))
+  }
+
+  private freshResumptionHandle(): string | undefined {
+    if (this.resumptionHandle && Date.now() - this.resumptionHandleAt > RESUMPTION_MAX_AGE_MS) {
+      console.warn('Resumption handle đã quá hạn — mở phiên Gemini mới (mất ngữ cảnh trước đó)')
+      this.resumptionHandle = undefined
+    }
+    return this.resumptionHandle
+  }
+
+  // đặt lại streaming/gated sau khi (nối lại) kết nối — trừ khi đã dừng hoặc đang tạm dừng
+  private setActiveState(): void {
+    if (!this.started || this.paused) return
+    this.setState(this.vad.open ? 'streaming' : 'gated')
   }
 
   private setState(state: SessionState, error?: string): void {

@@ -3,6 +3,7 @@ import {
   SEGMENT_MAX_CHARS,
   SEGMENT_MIN_SPLIT_CHARS
 } from '../../shared/constants'
+import { isPauseMarker, pauseLabel } from '../../shared/pause'
 import type { ExportFormat, SubtitleSegment, SubtitleUpdate } from '../../shared/types'
 
 // Kết câu (Latin + CJK), cho phép đóng ngoặc/nháy theo sau
@@ -15,12 +16,14 @@ export interface SubtitleStoreOptions {
 }
 
 function clone(seg: SubtitleSegment): SubtitleSegment {
-  return {
+  const copy: SubtitleSegment = {
     id: seg.id,
     startedAt: seg.startedAt,
     source: { ...seg.source },
     target: { ...seg.target }
   }
+  if (seg.pauseEndedAt !== undefined) copy.pauseEndedAt = seg.pauseEndedAt
+  return copy
 }
 
 function formatClock(ms: number): string {
@@ -112,6 +115,22 @@ export class SubtitleStore {
     this.emit({ type: 'segment', segment: clone(seg) })
   }
 
+  // Ghi mốc tạm dừng LÚC TIẾP TỤC (không phải lúc bấm tạm dừng): câu dịch dở về muộn trong
+  // lúc tạm dừng vẫn nằm trước mốc, và bấm Dừng khi đang tạm dừng thì không để lại mốc thừa.
+  addPauseMarker(pausedAt: number, resumedAt: number): void {
+    this.finalizeOpenSegment()
+    this.lastFragmentAt = 0
+    const marker: SubtitleSegment = {
+      id: `pause-${++this.counter}`,
+      startedAt: pausedAt,
+      source: { text: '', final: true },
+      target: { text: '', final: true },
+      pauseEndedAt: Math.max(pausedAt, resumedAt)
+    }
+    this.segments.push(marker)
+    this.emit({ type: 'segment', segment: clone(marker) })
+  }
+
   history(): SubtitleSegment[] {
     const all = this.segments.map(clone)
     if (this.openSegment) all.push(clone(this.openSegment))
@@ -130,16 +149,22 @@ export class SubtitleStore {
   }
 
   export(format: ExportFormat): string {
-    const all = this.history().filter((s) => s.source.text.trim() || s.target.text.trim())
-    if (all.length === 0) return ''
+    const all = this.history().filter(
+      (s) => isPauseMarker(s) || s.source.text.trim() || s.target.text.trim()
+    )
+    // chỉ có mốc tạm dừng mà không có lời nào → coi như rỗng
+    if (!all.some((s) => !isPauseMarker(s))) return ''
     const t0 = all[0].startedAt
 
     if (format === 'srt') {
       return all
         .map((seg, i) => {
           const start = seg.startedAt - t0
-          const end = i + 1 < all.length ? all[i + 1].startedAt - t0 : start + 4000
-          const lines = [seg.source.text.trim(), seg.target.text.trim()].filter(Boolean)
+          const next = i + 1 < all.length ? all[i + 1].startedAt - t0 : start + 4000
+          const end = isPauseMarker(seg) ? seg.pauseEndedAt - t0 : next
+          const lines = isPauseMarker(seg)
+            ? [`⏸ ${pauseLabel(seg)}`]
+            : [seg.source.text.trim(), seg.target.text.trim()].filter(Boolean)
           return `${i + 1}\n${formatSrtTime(start)} --> ${formatSrtTime(Math.max(start + 500, end))}\n${lines.join('\n')}`
         })
         .join('\n\n')
@@ -149,6 +174,7 @@ export class SubtitleStore {
       const rows = all
         .map((seg) => {
           const time = formatClock(seg.startedAt - t0)
+          if (isPauseMarker(seg)) return `**[${time}]** ⏸ *${pauseLabel(seg)}*`
           return `**[${time}]** ${seg.source.text.trim()}\n\n> ${seg.target.text.trim()}`
         })
         .join('\n\n')
@@ -158,6 +184,7 @@ export class SubtitleStore {
     return all
       .map((seg) => {
         const time = formatClock(seg.startedAt - t0)
+        if (isPauseMarker(seg)) return `[${time}] ⏸ ${pauseLabel(seg)}`
         return `[${time}] ${seg.source.text.trim()}\n         → ${seg.target.text.trim()}`
       })
       .join('\n\n')

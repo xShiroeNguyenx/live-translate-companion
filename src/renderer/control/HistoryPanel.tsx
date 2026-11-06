@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { languageShort } from '../../shared/languages'
+import { countSpokenSegments } from '../../shared/pause'
 import type { HistoryEntry, HistoryRecord } from '../../shared/types'
 import { useControlStore } from './store'
 import { formatDuration } from './ui-helpers'
@@ -104,7 +105,7 @@ export function HistoryPanel({
             <span>⏱ {durationOf(record)}</span>
             <span>🌐 → {languageShort(record.targetLanguage)}</span>
             <span>≈ ${record.costUsd.toFixed(3)}</span>
-            <span>{record.segments.length} câu</span>
+            <span>{countSpokenSegments(record.segments)} câu</span>
           </div>
           <div className="row wrap">
             <button className="small" disabled={summarizing} onClick={() => void summarize()}>

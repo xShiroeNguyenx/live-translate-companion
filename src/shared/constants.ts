@@ -11,6 +11,10 @@ export const VAD_OPEN_FRAMES = 2
 export const VAD_HANGOVER_MS = 2000
 export const VAD_PREROLL_MS = 500
 export const IDLE_DISCONNECT_MS = 5 * 60 * 1000
+// Tạm dừng: giữ kết nối thêm chút để nhận nốt câu đang dịch dở, rồi mới đóng WS
+export const PAUSE_DISCONNECT_MS = 15 * 1000
+// resumption handle của Gemini Live còn hạn ~2h → bỏ handle cũ hơn mức này, mở phiên Gemini mới
+export const RESUMPTION_MAX_AGE_MS = 110 * 60 * 1000
 
 export const SEGMENT_GAP_MS = 2000
 export const SEGMENT_MIN_SPLIT_CHARS = 50
@@ -18,6 +22,8 @@ export const SEGMENT_MAX_CHARS = 250
 export const OVERLAY_TOGGLE_SHORTCUT = 'CommandOrControl+Shift+O'
 // bật/tắt chiều về từ bất cứ đâu (tránh Ctrl+Shift+T của trình duyệt)
 export const INCOMING_TOGGLE_SHORTCUT = 'CommandOrControl+Alt+T'
+// tạm dừng / tiếp tục chiều về (giữ nguyên phụ đề, file transcript, mục lịch sử)
+export const INCOMING_PAUSE_SHORTCUT = 'CommandOrControl+Alt+P'
 
 // alias luôn trỏ tới bản Flash mới nhất — đổi được trong Cài đặt
 export const DEFAULT_SUMMARY_MODEL = 'gemini-flash-latest'

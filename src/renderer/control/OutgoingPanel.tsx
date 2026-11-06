@@ -19,6 +19,7 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
   if (!api || !settings) return <></>
 
   const running = !['idle', 'error'].includes(outgoing.state)
+  const paused = outgoing.state === 'paused'
   const isPtt = settings.outgoingMode === 'ptt'
   const talking = outgoing.state === 'streaming'
   const sinkLabel = outgoingSinkState?.label || settings.outgoingDeviceLabel
@@ -41,8 +42,23 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
     }
   }
 
+  const togglePause = async (): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      if (paused) {
+        const result = await api.resumeOutgoing()
+        if (!result.ok) setError(result.error ?? 'Không tiếp tục được chiều đi.')
+      } else {
+        await api.pauseOutgoing()
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const press = (active: boolean): void => {
-    if (running && isPtt) void api.setPushToTalk(active)
+    if (running && !paused && isPtt) void api.setPushToTalk(active)
   }
 
   return (
@@ -75,6 +91,16 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
         >
           {running ? '■ Tắt' : '▶ Bật chiều đi'}
         </button>
+        {running && (
+          <button
+            className={paused ? 'btn-start' : 'btn-pause'}
+            onClick={() => void togglePause()}
+            disabled={busy || outgoing.state === 'connecting'}
+            title="Ngừng gửi giọng nói nhưng giữ nguyên transcript chiều đi"
+          >
+            {paused ? '▶ Tiếp tục' : '⏸ Tạm dừng'}
+          </button>
+        )}
         <div className="metrics">
           <span>⏱ {formatDuration(outgoingMetrics.sessionSeconds)}</span>
           <span>📤 {outgoingMetrics.secondsSent.toFixed(0)}s</span>
@@ -86,13 +112,17 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
       {isPtt ? (
         <button
           className={`ptt-btn ${talking ? 'talking' : ''}`}
-          disabled={!running}
+          disabled={!running || paused}
           title="Hoặc nhấn Ctrl+Space (bật/tắt) khi đang ở cửa sổ meeting"
           onPointerDown={() => press(true)}
           onPointerUp={() => press(false)}
           onPointerLeave={() => press(false)}
         >
-          {talking ? '🔴 Đang nói… (thả ra để gửi)' : '🎤 Giữ để nói · Ctrl+Space'}
+          {paused
+            ? '⏸ Đang tạm dừng'
+            : talking
+              ? '🔴 Đang nói… (thả ra để gửi)'
+              : '🎤 Giữ để nói · Ctrl+Space'}
         </button>
       ) : (
         <LevelMeter rmsDb={outgoingMetrics.rmsDb} thresholdDb={settings.outgoingVadThresholdDb} />

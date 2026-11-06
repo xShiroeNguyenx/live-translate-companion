@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
+import { INCOMING_PAUSE_SHORTCUT, INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
 import { parseKeywords } from '../../shared/keywords'
 import { languageShort } from '../../shared/languages'
 import type { ExportFormat } from '../../shared/types'
@@ -13,6 +13,7 @@ import { LevelMeter, SegmentList, Warn } from './widgets'
 type Tab = 'main' | 'history' | 'settings'
 
 const TOGGLE_HINT = INCOMING_TOGGLE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
+const PAUSE_HINT = INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
 
 function UsageBar(): React.JSX.Element {
   const usage = useControlStore((s) => s.usage)
@@ -59,11 +60,17 @@ export function App(): React.JSX.Element {
   )
 
   useEffect(() => init(), [init])
+  // "tóm tắt đến giờ" và bản cuối dùng chung id phiên → lượt tóm tắt mới phải hiện lại banner
+  // dù user đã đóng banner của lượt trước
+  useEffect(() => {
+    if (lastSummary?.state === 'running') setSummaryDismissed(null)
+  }, [lastSummary])
 
   if (!api) return <div className="app">Lỗi: preload chưa nạp được.</div>
   if (!settings) return <div className="app">Đang tải…</div>
 
   const running = !['idle', 'error'].includes(session.state)
+  const paused = session.state === 'paused'
   // sinkState là sự thật từ engine (sink thực tế); chưa có thì đoán theo lựa chọn hiện tại
   const selectedDevice = outputDevices.find((d) => d.deviceId === settings.playbackDeviceId)
   const sinkCaptured = sinkState
@@ -92,6 +99,28 @@ export function App(): React.JSX.Element {
       setBusy(false)
     }
   }
+
+  const togglePause = async (): Promise<void> => {
+    setBusy(true)
+    setNotice(null)
+    try {
+      if (paused) {
+        const result = await api.resumeSession()
+        if (!result.ok) setNotice(result.error ?? 'Không tiếp tục được phiên dịch.')
+      } else {
+        await api.pauseSession()
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const summarizeNow = async (): Promise<void> => {
+    setNotice(null)
+    const result = await api.summarizeCurrent()
+    if (!result.ok) setNotice(result.error ?? 'Không tóm tắt được.')
+  }
+  const summarizing = lastSummary?.state === 'running'
 
   const exportTranscript = async (format: ExportFormat): Promise<void> => {
     const path = await api.exportTranscript(format)
@@ -202,6 +231,16 @@ export function App(): React.JSX.Element {
               >
                 {running ? '■ Dừng' : '▶ Bắt đầu dịch'}
               </button>
+              {running && (
+                <button
+                  className={paused ? 'btn-start' : 'btn-pause'}
+                  onClick={() => void togglePause()}
+                  disabled={busy || session.state === 'connecting'}
+                  title={`Giữ nguyên phụ đề, file transcript và mục lịch sử · Phím tắt toàn cục: ${PAUSE_HINT}`}
+                >
+                  {paused ? '▶ Tiếp tục' : '⏸ Tạm dừng'}
+                </button>
+              )}
               <div className="metrics">
                 <span>⏱ {formatDuration(metrics.sessionSeconds)}</span>
                 <span>📤 {metrics.secondsSent.toFixed(0)}s</span>
@@ -209,6 +248,12 @@ export function App(): React.JSX.Element {
                 {metrics.reconnects > 0 && <span>🔁 {metrics.reconnects}</span>}
               </div>
             </div>
+            {paused && (
+              <p className="hint">
+                ⏸ Đang tạm dừng: không gửi audio lên Gemini. Bấm Tiếp tục để dịch nối vào cùng
+                transcript; bấm Dừng để kết thúc phiên.
+              </p>
+            )}
             <LevelMeter rmsDb={metrics.rmsDb} thresholdDb={settings.vadThresholdDb} />
             <SegmentList segments={segments} placeholder="Chưa có nội dung…" keywords={keywords} />
             <div className="row export-row">
@@ -222,6 +267,17 @@ export function App(): React.JSX.Element {
               <button className="small" onClick={() => void exportTranscript('md')}>
                 .md
               </button>
+              {running && (
+                <button
+                  className="small"
+                  style={{ marginLeft: 'auto' }}
+                  disabled={summarizing || !hasKey}
+                  onClick={() => void summarizeNow()}
+                  title="Tóm tắt phần đã dịch mà không dừng phiên — bản tóm tắt cuối vẫn chạy khi bấm Dừng"
+                >
+                  {summarizing ? '⏳ Đang tóm tắt…' : '📝 Tóm tắt đến giờ'}
+                </button>
+              )}
             </div>
           </section>
 

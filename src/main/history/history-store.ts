@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { normalizeForMatch } from '../../shared/keywords'
+import { countSpokenSegments } from '../../shared/pause'
 import type { HistoryEntry, HistoryRecord } from '../../shared/types'
 
 const ID_RE = /^[\w-]+$/
@@ -12,7 +13,7 @@ function toEntry(r: HistoryRecord): HistoryEntry {
   return {
     ...rest,
     preview: (first?.target.text.trim() || first?.source.text.trim() || '').slice(0, 140),
-    segmentCount: segments.length,
+    segmentCount: countSpokenSegments(segments),
     hasSummary: !!summary
   }
 }

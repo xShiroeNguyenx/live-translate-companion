@@ -266,6 +266,16 @@ button:disabled {
   background: #991b1b;
 }
 
+.btn-pause {
+  background: #581c87;
+  border-color: #6b21a8;
+  font-weight: 600;
+}
+
+.btn-pause:hover:not(:disabled) {
+  background: #6b21a8;
+}
+
 .metrics {
   display: flex;
   gap: 12px;
@@ -408,6 +418,14 @@ input[type='range'] {
 .segment .tgt {
   color: #f3f4f6;
   font-size: 14px;
+}
+
+/* mốc tạm dừng xen giữa transcript */
+.segment.pause-marker {
+  border-left-color: #a855f7;
+  color: #c4b5fd;
+  font-size: 12px;
+  font-style: italic;
 }
 
 input[type='text'],

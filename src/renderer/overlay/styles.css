@@ -90,6 +90,23 @@ body {
   }
 }
 
+/* mốc tạm dừng trong lịch sử phụ đề */
+.line.pause-marker {
+  color: #c4b5fd;
+  font-size: 12px;
+  font-style: italic;
+  padding: 3px 10px;
+}
+
+/* đang tạm dừng — phải thấy được cả khi Meet full-screen */
+.line.paused-badge {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  outline: 2px solid #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+}
+
 /* có từ khoá cần chú ý (tên mình…) */
 .line.hit {
   outline: 2px solid #facc15;

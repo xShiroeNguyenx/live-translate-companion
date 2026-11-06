@@ -25,6 +25,8 @@ export const IPC = {
   secretsHasApiKey: 'secrets:hasApiKey',
   sessionStart: 'session:start',
   sessionStop: 'session:stop',
+  sessionPause: 'session:pause',
+  sessionResume: 'session:resume',
   transcriptExport: 'transcript:export',
   overlaySetClickThrough: 'overlay:setClickThrough',
   overlaySetVisible: 'overlay:setVisible',
@@ -36,6 +38,8 @@ export const IPC = {
   outgoingStart: 'outgoing:start',
   outgoingStop: 'outgoing:stop',
   outgoingPtt: 'outgoing:ptt',
+  outgoingPause: 'outgoing:pause',
+  outgoingResume: 'outgoing:resume',
   appGetVersion: 'app:getVersion',
   updateCheck: 'update:check',
   updateInstall: 'update:install',
@@ -46,6 +50,7 @@ export const IPC = {
   historyGet: 'history:get',
   historyDelete: 'history:delete',
   historySummarize: 'history:summarize',
+  historySummarizeCurrent: 'history:summarizeCurrent',
   historyOpenFile: 'history:openFile',
   usageGet: 'usage:get',
   modelsListLive: 'models:listLive',
@@ -96,6 +101,9 @@ export interface ControlApi {
   hasApiKey(): Promise<boolean>
   startSession(): Promise<{ ok: boolean; error?: string }>
   stopSession(): Promise<void>
+  // tạm dừng/tiếp tục chiều về: giữ phụ đề, file transcript, mục lịch sử (tiếp tục có kiểm tra giới hạn chi phí)
+  pauseSession(): Promise<void>
+  resumeSession(): Promise<{ ok: boolean; error?: string }>
   exportTranscript(format: ExportFormat): Promise<string | null>
   setOverlayClickThrough(on: boolean): Promise<void>
   setOverlayVisible(visible: boolean): Promise<void>
@@ -107,6 +115,8 @@ export interface ControlApi {
   startOutgoing(): Promise<{ ok: boolean; error?: string }>
   stopOutgoing(): Promise<void>
   setPushToTalk(active: boolean): Promise<void>
+  pauseOutgoing(): Promise<void>
+  resumeOutgoing(): Promise<{ ok: boolean; error?: string }>
   getAppVersion(): Promise<string>
   checkForUpdate(): Promise<void>
   installUpdate(): Promise<void>
@@ -118,6 +128,8 @@ export interface ControlApi {
   getHistory(id: string): Promise<HistoryRecord | null>
   deleteHistory(id: string): Promise<boolean>
   summarizeHistory(id: string): Promise<{ ok: boolean; error?: string }>
+  // tóm tắt phần đã dịch của phiên chiều về đang chạy/tạm dừng, không dừng phiên
+  summarizeCurrent(): Promise<{ ok: boolean; error?: string }>
   openHistoryFile(id: string, kind: 'transcript' | 'summary'): Promise<void>
   getUsage(): Promise<UsageSummary>
   // model dịch Live mà API key dùng được, theo API version đang chọn
@@ -141,6 +153,7 @@ export interface ControlApi {
 
 export interface OverlayApi {
   getSettings(): Promise<AppSettings>
+  onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onSettingsChanged(cb: (s: AppSettings) => void): () => void
 }

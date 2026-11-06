@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { normalizeApiVersion, type GeminiApiVersion } from '../../shared/gemini-api'
 import { languageLabel } from '../../shared/languages'
+import { formatPauseDuration, isPauseMarker } from '../../shared/pause'
 import type { HistoryRecord, SubtitleSegment } from '../../shared/types'
 
 export interface SummaryInput {
@@ -34,6 +35,8 @@ export function mergeTranscript(input: SummaryInput): string {
   }))
   for (const rec of input.outgoing) {
     for (const seg of rec.segments) {
+      // mốc tạm dừng của chiều đi không nói lên gì về nội dung cuộc họp → bỏ
+      if (isPauseMarker(seg)) continue
       if (seg.startedAt >= incoming.startedAt && seg.startedAt <= incoming.endedAt) {
         lines.push({ at: seg.startedAt, speaker: 'Tôi', seg })
       }
@@ -41,8 +44,12 @@ export function mergeTranscript(input: SummaryInput): string {
   }
   lines.sort((a, b) => a.at - b.at)
   return lines
-    .filter((l) => l.seg.source.text.trim() || l.seg.target.text.trim())
+    .filter((l) => isPauseMarker(l.seg) || l.seg.source.text.trim() || l.seg.target.text.trim())
     .map((l) => {
+      if (isPauseMarker(l.seg)) {
+        const duration = formatPauseDuration(l.seg.pauseEndedAt - l.seg.startedAt)
+        return `[${clock(l.at - incoming.startedAt)}] (TẠM DỪNG DỊCH ${duration} — đoạn này không có transcript)`
+      }
       const src = l.seg.source.text.trim()
       const tgt = l.seg.target.text.trim()
       const text = src && tgt ? `${src} (dịch: ${tgt})` : src || tgt
@@ -58,6 +65,9 @@ export function buildSummaryPrompt(input: SummaryInput): string {
     `Bạn là thư ký cuộc họp. Dưới đây là transcript song ngữ (lời gốc + bản dịch máy) của một cuộc họp.`,
     `"Meeting" là những người khác trong cuộc họp, "Tôi" là người dùng app.`,
     `Bản dịch máy có thể sai — hãy dựa vào cả lời gốc lẫn bản dịch để hiểu đúng ý.`,
+    input.incoming.segments.some(isPauseMarker)
+      ? `Dòng "TẠM DỪNG DỊCH" là khoảng người dùng tắt dịch — nội dung đoạn đó bị thiếu, đừng suy đoán.`
+      : '',
     context ? `\nNgữ cảnh / thuật ngữ do người dùng cung cấp:\n${context}` : '',
     `\nHãy viết bằng ${lang}, định dạng Markdown, đúng các mục sau (bỏ mục nào không có nội dung):`,
     `## Tóm tắt\n3–6 gạch đầu dòng nội dung chính.`,

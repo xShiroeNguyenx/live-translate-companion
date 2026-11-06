@@ -1,9 +1,14 @@
 import { Menu, nativeImage, Tray } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
-import { INCOMING_TOGGLE_SHORTCUT, OUTGOING_PTT_SHORTCUT } from '../shared/constants'
+import {
+  INCOMING_PAUSE_SHORTCUT,
+  INCOMING_TOGGLE_SHORTCUT,
+  OUTGOING_PTT_SHORTCUT
+} from '../shared/constants'
 
 export interface TrayState {
   incomingRunning: boolean
+  incomingPaused: boolean
   outgoingRunning: boolean
   overlayVisible: boolean
 }
@@ -11,6 +16,7 @@ export interface TrayState {
 export interface TrayActions {
   showWindow(): void
   toggleIncoming(): void
+  togglePauseIncoming(): void
   toggleOutgoing(): void
   toggleOverlay(): void
   quit(): void
@@ -35,10 +41,9 @@ export class AppTray {
 
   refresh(): void {
     const s = this.getState()
+    const incoming = !s.incomingRunning ? 'tắt' : s.incomingPaused ? 'tạm dừng' : 'đang chạy'
     this.tray.setToolTip(
-      `Live Translate — chiều về: ${s.incomingRunning ? 'đang chạy' : 'tắt'}, chiều đi: ${
-        s.outgoingRunning ? 'đang chạy' : 'tắt'
-      }`
+      `Live Translate — chiều về: ${incoming}, chiều đi: ${s.outgoingRunning ? 'đang chạy' : 'tắt'}`
     )
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
@@ -49,6 +54,13 @@ export class AppTray {
           accelerator: accel(INCOMING_TOGGLE_SHORTCUT),
           registerAccelerator: false,
           click: () => this.actions.toggleIncoming()
+        },
+        {
+          label: s.incomingPaused ? '▶ Tiếp tục dịch (chiều về)' : '⏸ Tạm dừng dịch (chiều về)',
+          accelerator: accel(INCOMING_PAUSE_SHORTCUT),
+          registerAccelerator: false,
+          enabled: s.incomingRunning,
+          click: () => this.actions.togglePauseIncoming()
         },
         {
           label: s.outgoingRunning ? '■ Tắt chiều đi' : '▶ Bật chiều đi',

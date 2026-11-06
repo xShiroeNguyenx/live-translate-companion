@@ -17,6 +17,8 @@ export interface SummaryServiceDeps {
 // Tóm tắt 1 phiên chiều về (kèm lời chiều đi chồng thời gian) → lưu vào lịch sử + file .md
 export class SummaryService extends EventEmitter {
   private running = new Set<string>()
+  // gọi lại trong lúc đang chạy với queueIfRunning → chạy thêm 1 lượt khi lượt hiện tại xong
+  private queued = new Set<string>()
 
   constructor(private deps: SummaryServiceDeps) {
     super()
@@ -34,8 +36,19 @@ export class SummaryService extends EventEmitter {
       )
   }
 
-  async summarize(id: string): Promise<{ ok: boolean; error?: string }> {
-    if (this.running.has(id)) return { ok: false, error: 'Đang tóm tắt phiên này' }
+  // queueIfRunning: dùng cho tóm tắt cuối phiên — nếu bản "tóm tắt đến giờ" còn đang chạy thì
+  // xếp hàng chạy lại sau đó (với transcript đầy đủ) thay vì bỏ qua
+  async summarize(
+    id: string,
+    opts: { queueIfRunning?: boolean } = {}
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (this.running.has(id)) {
+      if (opts.queueIfRunning) {
+        this.queued.add(id)
+        return { ok: true }
+      }
+      return { ok: false, error: 'Đang tóm tắt phiên này' }
+    }
     const rec = this.deps.history.get(id)
     if (!rec) return { ok: false, error: 'Không tìm thấy phiên' }
     const apiKey = this.deps.getApiKey()
@@ -75,6 +88,7 @@ export class SummaryService extends EventEmitter {
       return { ok: false, error }
     } finally {
       this.running.delete(id)
+      if (this.queued.delete(id)) void this.summarize(id)
     }
   }
 

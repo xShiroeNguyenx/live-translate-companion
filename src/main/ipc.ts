@@ -32,6 +32,9 @@ export interface IpcContext {
   // start có kiểm tra giới hạn chi phí tháng
   startIncoming(): Promise<{ ok: boolean; error?: string }>
   startOutgoing(): Promise<{ ok: boolean; error?: string }>
+  resumeIncoming(): { ok: boolean; error?: string }
+  resumeOutgoing(): { ok: boolean; error?: string }
+  summarizeCurrent(): Promise<{ ok: boolean; error?: string }>
   history: HistoryStore
   summary: SummaryService
   usageSummary(): UsageSummary
@@ -57,10 +60,14 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle(IPC.sessionStart, () => ctx.startIncoming())
   ipcMain.handle(IPC.sessionStop, () => ctx.sessions.stop())
+  ipcMain.handle(IPC.sessionPause, () => ctx.sessions.pause())
+  ipcMain.handle(IPC.sessionResume, () => ctx.resumeIncoming())
 
   ipcMain.handle(IPC.outgoingStart, () => ctx.startOutgoing())
   ipcMain.handle(IPC.outgoingStop, () => ctx.outgoing.stop())
   ipcMain.handle(IPC.outgoingPtt, (_e, active: boolean) => ctx.outgoing.setPushToTalk(active))
+  ipcMain.handle(IPC.outgoingPause, () => ctx.outgoing.pause())
+  ipcMain.handle(IPC.outgoingResume, () => ctx.resumeOutgoing())
 
   ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
   ipcMain.handle(IPC.updateCheck, () => ctx.updater.check())
@@ -87,6 +94,7 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.historyGet, (_e, id: string) => ctx.history.get(id))
   ipcMain.handle(IPC.historyDelete, (_e, id: string) => ctx.history.delete(id))
   ipcMain.handle(IPC.historySummarize, (_e, id: string) => ctx.summary.summarize(id))
+  ipcMain.handle(IPC.historySummarizeCurrent, () => ctx.summarizeCurrent())
   // mở theo id (không nhận đường dẫn từ renderer) — chỉ mở được file của chính bản ghi
   ipcMain.handle(IPC.historyOpenFile, async (_e, id: string, kind: 'transcript' | 'summary') => {
     const rec = ctx.history.get(id)

@@ -5,6 +5,8 @@ export type SessionState =
   | 'connecting'
   | 'streaming'
   | 'gated'
+  // phiên vẫn mở (phụ đề, transcript, lịch sử giữ nguyên) nhưng không gửi audio
+  | 'paused'
   | 'draining'
   | 'reconnecting'
   | 'stopping'
@@ -31,6 +33,8 @@ export interface SubtitleSegment {
   startedAt: number
   source: { text: string; final: boolean }
   target: { text: string; final: boolean }
+  // có giá trị = mốc TẠM DỪNG (không có lời): tạm dừng lúc startedAt, tiếp tục lúc pauseEndedAt
+  pauseEndedAt?: number
 }
 
 export type SubtitleUpdate =

@@ -1,20 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
+import { INCOMING_PAUSE_SHORTCUT } from '../../shared/constants'
 import { findKeyword, parseKeywords } from '../../shared/keywords'
+import { isPauseMarker, pauseLabel } from '../../shared/pause'
 import type { AppSettings, SubtitleSegment, SubtitleUpdate } from '../../shared/types'
 
 const HISTORY_LIMIT = 50
 const LOCKED_VISIBLE = 3
+const PAUSE_HINT = INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
 
 export function App(): React.JSX.Element {
   const api = window.overlayApi
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [segments, setSegments] = useState<SubtitleSegment[]>([])
+  const [paused, setPaused] = useState(false)
   const stackRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!api) return
     void api.getSettings().then(setSettings)
     const offSettings = api.onSettingsChanged(setSettings)
+    const offState = api.onSessionState((s) => setPaused(s.state === 'paused'))
     const offSubtitles = api.onSubtitleUpdate((update: SubtitleUpdate) => {
       if (update.type === 'clear') {
         setSegments([])
@@ -34,6 +39,7 @@ export function App(): React.JSX.Element {
     })
     return () => {
       offSettings()
+      offState()
       offSubtitles()
     }
   }, [api])
@@ -41,7 +47,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const el = stackRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [segments, settings?.overlayClickThrough])
+  }, [segments, paused, settings?.overlayClickThrough])
 
   if (!api || !settings) return <div />
 
@@ -59,7 +65,12 @@ export function App(): React.JSX.Element {
         </div>
       )}
       <div className="stack" ref={stackRef}>
-        {visible.map((seg) => (
+        {visible.map((seg) =>
+          isPauseMarker(seg) ? (
+            <div key={seg.id} className="line pause-marker" style={{ background }}>
+              ⏸ {pauseLabel(seg)}
+            </div>
+          ) : (
           <div
             key={seg.id}
             className={`line ${
@@ -80,7 +91,13 @@ export function App(): React.JSX.Element {
               </p>
             )}
           </div>
-        ))}
+          )
+        )}
+        {paused && (
+          <div className="line paused-badge" style={{ background }}>
+            ⏸ Đang tạm dừng dịch · {PAUSE_HINT} để tiếp tục
+          </div>
+        )}
       </div>
     </div>
   )

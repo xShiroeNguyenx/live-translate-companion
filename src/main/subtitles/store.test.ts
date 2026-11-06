@@ -141,3 +141,56 @@ describe('SubtitleStore', () => {
     expect(updates.at(-1)).toEqual({ type: 'clear' })
   })
 })
+
+describe('SubtitleStore mốc tạm dừng', () => {
+  const MIN = 60_000
+
+  it('addPauseMarker chốt segment đang mở, thêm mốc và phát update', () => {
+    const { store, updates, clock } = makeStore()
+    store.appendSource('Hello')
+    store.appendTarget('Xin chào')
+    store.addPauseMarker(clock.now + 1000, clock.now + 15 * MIN)
+    const history = store.history()
+    expect(history).toHaveLength(2)
+    expect(history[0].target.final).toBe(true)
+    expect(history[1].pauseEndedAt).toBe(clock.now + 15 * MIN)
+    const last = updates.at(-1)
+    expect(last?.type === 'segment' && last.segment.pauseEndedAt).toBe(clock.now + 15 * MIN)
+  })
+
+  it('lời sau khi tiếp tục mở segment mới, không dính vào segment trước mốc', () => {
+    const { store, clock } = makeStore({ gapMs: 10 * MIN })
+    store.appendTarget('Trước')
+    store.addPauseMarker(clock.now, clock.now + MIN)
+    clock.now += MIN
+    store.appendTarget('Sau')
+    const texts = store.history().map((s) => s.target.text)
+    expect(texts).toEqual(['Trước', '', 'Sau'])
+  })
+
+  it('export txt/md/srt có dòng tạm dừng kèm thời lượng', () => {
+    const { store, clock } = makeStore()
+    clock.now = new Date(2026, 10, 6, 14, 0).getTime()
+    store.appendSource('Hello')
+    store.appendTarget('Xin chào')
+    store.finalizeOpenSegment()
+    const pausedAt = new Date(2026, 10, 6, 14, 30).getTime()
+    store.addPauseMarker(pausedAt, pausedAt + 15 * MIN)
+    clock.now = pausedAt + 15 * MIN
+    store.appendTarget('Tiếp')
+
+    const txt = store.export('txt')
+    expect(txt).toContain('[00:30:00] ⏸ Tạm dừng 14:30 → 14:45 (15 phút)')
+    expect(txt).toContain('[00:45:00]')
+    expect(store.export('md')).toContain('**[00:30:00]** ⏸ *Tạm dừng 14:30 → 14:45 (15 phút)*')
+    const srt = store.export('srt')
+    expect(srt).toContain('00:30:00,000 --> 00:45:00,000\n⏸ Tạm dừng 14:30 → 14:45 (15 phút)')
+    expect(srt.split('\n\n')).toHaveLength(3)
+  })
+
+  it('chỉ có mốc tạm dừng, không có lời → export rỗng', () => {
+    const { store, clock } = makeStore()
+    store.addPauseMarker(clock.now, clock.now + MIN)
+    expect(store.export('txt')).toBe('')
+  })
+})

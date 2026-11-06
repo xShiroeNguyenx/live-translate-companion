@@ -58,6 +58,25 @@ describe('summarizer', () => {
     ])
   })
 
+  it('mốc tạm dừng chiều về vào transcript; mốc chiều đi bị bỏ; prompt chỉ giải thích khi có mốc', () => {
+    const withPause = rec('in2', 'incoming', 0, 100_000, [
+      seg(1000, 'こんにちは', 'Xin chào'),
+      { ...seg(20_000, '', ''), pauseEndedAt: 20_000 + 15 * 60_000 }
+    ])
+    const outPause = rec('out2', 'outgoing', 0, 100_000, [
+      { ...seg(25_000, '', ''), pauseEndedAt: 40_000 }
+    ])
+    const input = { incoming: withPause, outgoing: [outPause], meetingContext: '', language: 'vi' }
+    expect(mergeTranscript(input).split('\n')).toEqual([
+      '[00:00:01] Meeting: こんにちは (dịch: Xin chào)',
+      '[00:00:20] (TẠM DỪNG DỊCH 15 phút — đoạn này không có transcript)'
+    ])
+    expect(buildSummaryPrompt(input)).toContain('đừng suy đoán')
+    expect(
+      buildSummaryPrompt({ incoming, outgoing: [], meetingContext: '', language: 'vi' })
+    ).not.toContain('TẠM DỪNG DỊCH')
+  })
+
   it('prompt chứa ngữ cảnh + ngôn ngữ đầu ra', () => {
     const p = buildSummaryPrompt({
       incoming,
@@ -119,5 +138,38 @@ describe('SummaryService', () => {
     const result = await svc.summarize('x')
     expect(result).toEqual({ ok: false, error: 'quota' })
     expect(history.get('x')?.summary).toBeUndefined()
+  })
+
+  it('đang chạy: gọi thường bị từ chối; queueIfRunning → chạy thêm 1 lượt sau khi xong', async () => {
+    const history = new HistoryStore(join(dir, 'history'))
+    history.upsert(rec('q', 'incoming', 0, 1, [seg(0, 'a', 'b')]))
+    let release: () => void = () => {}
+    const generate = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          release = () => resolve('ok')
+        })
+    )
+    const svc = new SummaryService({
+      history,
+      getApiKey: () => 'k',
+      getSettings: () => DEFAULT_SETTINGS,
+      fallbackDir: () => dir,
+      generate
+    })
+    const statuses: string[] = []
+    svc.on('status', (s: { state: string }) => statuses.push(s.state))
+
+    const first = svc.summarize('q')
+    expect(await svc.summarize('q')).toEqual({ ok: false, error: 'Đang tóm tắt phiên này' })
+    expect(await svc.summarize('q', { queueIfRunning: true })).toEqual({ ok: true })
+    expect(await svc.summarize('q', { queueIfRunning: true })).toEqual({ ok: true }) // gộp 1 lượt
+
+    release()
+    await first
+    expect(generate).toHaveBeenCalledTimes(2) // lượt xếp hàng đã bắt đầu
+    release()
+    await vi.waitFor(() => expect(statuses).toEqual(['running', 'done', 'running', 'done']))
+    expect(generate).toHaveBeenCalledTimes(2)
   })
 })

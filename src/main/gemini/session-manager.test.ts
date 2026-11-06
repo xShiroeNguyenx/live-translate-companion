@@ -286,6 +286,152 @@ describe('SessionManager state machine', () => {
   })
 })
 
+describe('SessionManager tạm dừng / tiếp tục', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('tạm dừng: bỏ frame, giữ phụ đề; tiếp tục: gửi lại, không clear store, không bắt lại capture', async () => {
+    const { manager, sdk, states, updates, deps } = setup()
+    await manager.start()
+    sdk.lastOpts.callbacks.onMessage({ inputTranscription: 'Hello', outputTranscription: 'Xin chào' })
+
+    manager.pause()
+    expect(manager.isPaused()).toBe(true)
+    expect(manager.isStarted()).toBe(true)
+    expect(states.at(-1)?.state).toBe('paused')
+    speak(manager, 1, 5)
+    expect(sdk.last.sent.length).toBe(0)
+    expect(manager.getMetrics().rmsDb).toBe(-100) // thanh đo về đáy khi tạm dừng
+
+    manager.resume()
+    expect(manager.isPaused()).toBe(false)
+    expect(states.at(-1)?.state).toBe('gated')
+    speak(manager, 10, 2)
+    expect(sdk.last.sent.length).toBe(2)
+
+    expect(updates.some((u) => u.type === 'clear')).toBe(true) // chỉ 1 lần lúc start
+    expect(updates.filter((u) => u.type === 'clear').length).toBe(1)
+    expect(deps.startCapture).toHaveBeenCalledOnce()
+    expect(deps.stopCapture).not.toHaveBeenCalled()
+    await manager.stop()
+  })
+
+  it('tạm dừng giữa lúc đang nói → gửi audioStreamEnd để Gemini dịch nốt câu', async () => {
+    const { manager, sdk } = setup()
+    await manager.start()
+    speak(manager, 1, 2)
+    manager.pause()
+    expect(sdk.last.streamEnds).toBe(1)
+    expect(sdk.last.closed).toBe(false) // WS còn mở để nhận nốt bản dịch
+    await manager.stop()
+  })
+
+  it('tạm dừng lâu → đóng WS, không reconnect; tiếp tục → nối lại kèm resumption handle', async () => {
+    const { manager, sdk, states } = setup()
+    await manager.start()
+    sdk.lastOpts.callbacks.onMessage({ resumptionHandle: 'handle-abc' })
+    manager.pause()
+    await vi.advanceTimersByTimeAsync(16_000)
+    expect(sdk.last.closed).toBe(true)
+    sdk.lastOpts.callbacks.onClose({ code: 1000, reason: '' })
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(sdk.sessions.length).toBe(1) // không tự nối lại khi đang tạm dừng
+    expect(states.at(-1)?.state).toBe('paused')
+
+    manager.resume()
+    await vi.advanceTimersByTimeAsync(10)
+    expect(sdk.sessions.length).toBe(2)
+    expect(sdk.lastOpts.resumptionHandle).toBe('handle-abc')
+    expect(states.at(-1)?.state).toBe('gated')
+    await manager.stop()
+  })
+
+  it('server đóng kết nối trong lúc tạm dừng → không reconnect, vẫn paused', async () => {
+    const { manager, sdk, states } = setup()
+    await manager.start()
+    manager.pause()
+    sdk.lastOpts.callbacks.onClose({ code: 1011, reason: 'server hiccup' })
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(sdk.sessions.length).toBe(1)
+    expect(states.at(-1)?.state).toBe('paused')
+    await manager.stop()
+  })
+
+  it('đồng hồ phiên không tính thời gian tạm dừng', async () => {
+    const { manager } = setup()
+    await manager.start()
+    await vi.advanceTimersByTimeAsync(10_000)
+    manager.pause()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(manager.getMetrics().sessionSeconds).toBe(10)
+    manager.resume()
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(manager.getMetrics().sessionSeconds).toBe(15)
+    await manager.stop()
+  })
+
+  it('resumption handle quá hạn (tạm dừng quá lâu) → mở phiên Gemini mới', async () => {
+    const { manager, sdk } = setup()
+    await manager.start()
+    sdk.lastOpts.callbacks.onMessage({ resumptionHandle: 'old-handle' })
+    manager.pause()
+    await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000)
+    manager.resume()
+    await vi.advanceTimersByTimeAsync(10)
+    expect(sdk.sessions.length).toBe(2)
+    expect(sdk.lastOpts.resumptionHandle).toBeUndefined()
+    await manager.stop()
+  })
+
+  it('dừng khi đang tạm dừng → idle; bắt đầu lại là phiên mới, hết paused', async () => {
+    const { manager, states, updates } = setup()
+    await manager.start()
+    manager.pause()
+    await manager.stop()
+    expect(states.at(-1)?.state).toBe('idle')
+    expect(manager.isPaused()).toBe(false)
+    await manager.start()
+    expect(manager.isPaused()).toBe(false)
+    expect(updates.filter((u) => u.type === 'clear').length).toBe(2)
+    await manager.stop()
+  })
+
+  it('tiếp tục → thêm mốc tạm dừng (giờ dừng → giờ tiếp tục); dừng khi đang tạm dừng → không có mốc', async () => {
+    const { manager, updates } = setup()
+    await manager.start()
+    const pausedAt = Date.now()
+    manager.pause()
+    await vi.advanceTimersByTimeAsync(30_000)
+    manager.resume()
+    const markers = updates.filter((u) => u.type === 'segment' && u.segment.pauseEndedAt)
+    expect(markers).toHaveLength(1)
+    const m = markers[0]
+    expect(m.type === 'segment' && m.segment.startedAt).toBe(pausedAt)
+    expect(m.type === 'segment' && m.segment.pauseEndedAt).toBe(pausedAt + 30_000)
+
+    manager.pause()
+    await manager.stop()
+    expect(updates.filter((u) => u.type === 'segment' && u.segment.pauseEndedAt)).toHaveLength(1)
+  })
+
+  it('pause/resume là no-op khi chưa start; ptt bị chặn khi tạm dừng', async () => {
+    const idle = setup()
+    idle.manager.pause()
+    idle.manager.resume()
+    expect(idle.states.length).toBe(0)
+
+    const { manager, sdk } = setup({ getGateMode: () => 'ptt' })
+    await manager.start()
+    manager.setPushToTalk(true)
+    manager.pause()
+    expect(manager.isPushToTalkActive()).toBe(false)
+    expect(sdk.last.streamEnds).toBe(1)
+    manager.setPushToTalk(true)
+    expect(manager.isPushToTalkActive()).toBe(false)
+    await manager.stop()
+  })
+})
+
 describe('SessionManager push-to-talk (chiều đi)', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())

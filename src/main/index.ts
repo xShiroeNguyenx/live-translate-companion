@@ -2,6 +2,7 @@ import { app, globalShortcut, Notification, type BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import {
   BUDGET_WARN_RATIO,
+  INCOMING_PAUSE_SHORTCUT,
   INCOMING_TOGGLE_SHORTCUT,
   OUTGOING_PTT_SHORTCUT,
   OVERLAY_TOGGLE_SHORTCUT,
@@ -220,7 +221,24 @@ if (gotLock) {
       if (!s.autoSummary || !s.autoSaveEnabled || !id) return
       const chars = store.history().reduce((n, seg) => n + seg.target.text.trim().length, 0)
       if (chars < SUMMARY_MIN_CHARS) return
-      void summary.summarize(id)
+      // bản "tóm tắt đến giờ" còn đang chạy → xếp hàng, chạy lại với transcript đầy đủ
+      void summary.summarize(id, { queueIfRunning: true })
+    }
+
+    // "Tóm tắt đến giờ": tóm tắt phần đã dịch mà không dừng phiên (bản cuối vẫn chạy khi Dừng)
+    const summarizeCurrent = async (): Promise<{ ok: boolean; error?: string }> => {
+      if (!sessions.isStarted()) return { ok: false, error: 'Chưa có phiên dịch chiều về đang chạy.' }
+      if (!settings.get().autoSaveEnabled) {
+        return { ok: false, error: 'Cần bật “Tự lưu transcript” (tab Cài đặt) mới tóm tắt được.' }
+      }
+      const hasText = store.history().some((seg) => seg.target.text.trim() || seg.source.text.trim())
+      if (!hasText) return { ok: false, error: 'Chưa có nội dung để tóm tắt.' }
+      // ghi đĩa ngay để bản ghi lịch sử có đủ phần mới nhất (cả lời chiều đi chạy song song)
+      incomingSaver.flush()
+      outgoingSaver.flush()
+      const id = incomingSaver.currentSession?.id
+      if (!id) return { ok: false, error: 'Chưa lưu được transcript nên chưa tóm tắt được.' }
+      return summary.summarize(id)
     }
 
     // ── Chi phí + giới hạn tháng ──
@@ -272,6 +290,29 @@ if (gotLock) {
     }
     const startIncoming = (): Promise<{ ok: boolean; error?: string }> => guardedStart(sessions)
     const startOutgoing = (): Promise<{ ok: boolean; error?: string }> => guardedStart(outgoing)
+    // tiếp tục sau tạm dừng cũng phải qua giới hạn chi phí tháng như lúc bắt đầu
+    const guardedResume = (manager: SessionManager): { ok: boolean; error?: string } => {
+      if (!manager.isStarted() || !manager.isPaused()) return { ok: true }
+      const err = budgetError()
+      if (err) return { ok: false, error: err }
+      manager.resume()
+      return { ok: true }
+    }
+    const resumeIncoming = (): { ok: boolean; error?: string } => guardedResume(sessions)
+    const resumeOutgoing = (): { ok: boolean; error?: string } => guardedResume(outgoing)
+    // tray + Ctrl+Alt+P: thường bấm khi đang ở cửa sổ meeting → báo bằng notification
+    const togglePauseIncoming = (): void => {
+      if (!sessions.isStarted()) return
+      if (!sessions.isPaused()) {
+        sessions.pause()
+        const key = INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
+        notify('⏸ Đã tạm dừng dịch', `Không gửi audio. Nhấn ${key} để tiếp tục.`)
+        return
+      }
+      const result = resumeIncoming()
+      if (result.ok) notify('▶ Đã tiếp tục dịch', 'Phụ đề nối tiếp vào cùng transcript.')
+      else notify('Không tiếp tục được', result.error ?? 'Lỗi không rõ')
+    }
 
     // dùng cho tray + phím tắt (không có UI để hiện lỗi → báo bằng notification)
     const toggle = async (manager: SessionManager, start: typeof startIncoming): Promise<void> => {
@@ -287,12 +328,14 @@ if (gotLock) {
     const tray = new AppTray(
       () => ({
         incomingRunning: sessions.isStarted(),
+        incomingPaused: sessions.isPaused(),
         outgoingRunning: outgoing.isStarted(),
         overlayVisible: settings.get().overlayVisible
       }),
       {
         showWindow,
         toggleIncoming: () => void toggle(sessions, startIncoming),
+        togglePauseIncoming,
         toggleOutgoing: () => void toggle(outgoing, startOutgoing),
         toggleOverlay: () => {
           settings.set({ overlayVisible: !settings.get().overlayVisible })
@@ -310,6 +353,10 @@ if (gotLock) {
         incomingSaver.flush()
         usage.flush()
         maybeAutoSummarize()
+      } else if (info.state === 'paused') {
+        // tạm dừng: ghi đĩa phần đã có, nhưng chưa tóm tắt (phiên chưa kết thúc)
+        incomingSaver.flush()
+        usage.flush()
       }
       tray.refresh()
     })
@@ -360,9 +407,11 @@ if (gotLock) {
       sendOutgoingConfig(settings.get())
     }
 
-    // PTT toàn cục chỉ sống khi chiều đi đang chạy ở chế độ push-to-talk
+    // PTT toàn cục chỉ sống khi chiều đi đang chạy (không tạm dừng) ở chế độ push-to-talk —
+    // tạm dừng thì nhả Ctrl+Space cho app khác dùng
     const syncPttShortcut = (): void => {
-      const want = outgoing.isStarted() && settings.get().outgoingMode === 'ptt'
+      const want =
+        outgoing.isStarted() && !outgoing.isPaused() && settings.get().outgoingMode === 'ptt'
       const registered = globalShortcut.isRegistered(OUTGOING_PTT_SHORTCUT)
       if (want && !registered) {
         const ok = globalShortcut.register(OUTGOING_PTT_SHORTCUT, () => outgoing.togglePushToTalk())
@@ -374,7 +423,7 @@ if (gotLock) {
 
     outgoing.on('state', (info) => {
       sendToControl(IPC.evOutgoingState, info)
-      if (info.state === 'idle' || info.state === 'error') {
+      if (info.state === 'idle' || info.state === 'error' || info.state === 'paused') {
         outgoingSaver.flush()
         usage.flush()
       }
@@ -422,6 +471,9 @@ if (gotLock) {
       outgoing,
       startIncoming,
       startOutgoing,
+      resumeIncoming,
+      resumeOutgoing,
+      summarizeCurrent,
       debug,
       updater,
       history,
@@ -437,6 +489,9 @@ if (gotLock) {
     })
     if (!globalShortcut.register(INCOMING_TOGGLE_SHORTCUT, () => void toggle(sessions, startIncoming))) {
       console.warn('Không đăng ký được phím bật/tắt chiều về (có thể bị app khác chiếm)')
+    }
+    if (!globalShortcut.register(INCOMING_PAUSE_SHORTCUT, togglePauseIncoming)) {
+      console.warn('Không đăng ký được phím tạm dừng chiều về (có thể bị app khác chiếm)')
     }
 
     // thoát kiểu nào (tray, cài update, tắt cửa sổ khi không dùng tray…) cũng ghi nốt phần chưa lưu
