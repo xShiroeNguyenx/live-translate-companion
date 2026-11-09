@@ -22,8 +22,30 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      # Bản Electron (npm ci tải ở postinstall) + công cụ đóng gói (electron-builder) đều tải từ
+      # GitHub Releases, đôi khi trả 504 → giữ lại giữa các lần chạy cho đỡ phải tải
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-release-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-release-${{ runner.os }}-
+
+      # npm ci xoá node_modules trước khi cài nên thử lại là an toàn
+      - name: Install dependencies (retry on network errors)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            npm ci && exit 0
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::npm ci thất bại (lần $attempt) — thử lại sau $((attempt * 30))s"
+              sleep $((attempt * 30))
+            fi
+          done
+          echo "::error::npm ci thất bại 3 lần"
+          exit 1
 
       - name: Typecheck
         run: npm run typecheck
