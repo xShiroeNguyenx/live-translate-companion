@@ -3,12 +3,14 @@ import {
   FRAME_MS,
   IDLE_DISCONNECT_MS,
   PAUSE_DISCONNECT_MS,
-  PRICE_USD_PER_MINUTE,
-  RESUMPTION_MAX_AGE_MS
+  RESUMPTION_MAX_AGE_MS,
+  TRANSCRIBE_MAX_SESSION_MS,
+  TRANSCRIBE_ROTATE_WHEN_QUIET_MS
 } from '../../shared/constants'
 import type { GeminiApiVersion } from '../../shared/gemini-api'
-import type { Metrics, SessionState, SessionStateInfo } from '../../shared/types'
+import type { IncomingMode, Metrics, SessionState, SessionStateInfo } from '../../shared/types'
 import type { SubtitleStore } from '../subtitles/store'
+import type { TranslateRequest, TranslateResult } from '../translate/segment-translator'
 import {
   isSystemInstructionRejection,
   isTranslationConfigRejection,
@@ -16,6 +18,7 @@ import {
   type GeminiLiveSession,
   type LiveServerEvent
 } from './client'
+import { SpeechSink, TextSink, type SubtitleSink } from './subtitle-sink'
 import { VadGate } from './vad-gate'
 
 export interface SessionManagerDeps {
@@ -33,6 +36,13 @@ export interface SessionManagerDeps {
   // model + version Gemini đọc lại mỗi lần kết nối, nên đổi trong Cài đặt có hiệu lực từ lần nối sau
   getLiveModel?(): string
   getApiVersion?(): GeminiApiVersion
+  // chế độ dịch, đọc lúc Bắt đầu (đổi giữa phiên chỉ áp cho phiên sau). Mặc định 'speech'.
+  getMode?(): IncomingMode
+  // cần cho chế độ 'text' (chiều về); thiếu thì luôn chạy 'speech'
+  textMode?: {
+    client: GeminiLiveClient
+    translate(req: TranslateRequest): Promise<TranslateResult>
+  }
 }
 
 const MAX_PENDING_FRAMES = 50
@@ -63,6 +73,15 @@ export class SessionManager extends EventEmitter {
   private metricsTimer: ReturnType<typeof setInterval> | null = null
   private goAwayTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private mode: IncomingMode = 'speech'
+  private readonly speechSink: SpeechSink
+  private readonly textSink: TextSink | null
+  private sink: SubtitleSink
+  // lúc kết nối hiện tại mở xong — để xoay phiên chép lời trước giới hạn 10 phút
+  private connectedAt = 0
+  private translateError: string | undefined
+  // giữ thời lượng phiên sau khi Dừng (metrics còn phát khi câu cuối dịch xong muộn)
+  private finalActiveSeconds = 0
 
   constructor(
     private clients: GeminiLiveClient[],
@@ -70,13 +89,33 @@ export class SessionManager extends EventEmitter {
     private deps: SessionManagerDeps
   ) {
     super()
+    this.speechSink = new SpeechSink(store, (pcm) => this.deps.onPlaybackChunk(pcm))
+    const text = deps.textMode
+    this.textSink = text
+      ? new TextSink(store, (req) => text.translate(req), {
+          onCost: () => this.onExtraCost(),
+          onTranslateError: (message) => this.onTranslateError(message)
+        })
+      : null
+    this.sink = this.speechSink
   }
 
   getStateInfo(): SessionStateInfo {
-    return {
-      state: this.state,
-      usingFallbackClient: this.clientIndex > 0,
-      ...(this.contextDisabled ? { contextDisabled: true } : {})
+    return this.stateInfo()
+  }
+
+  getMode(): IncomingMode {
+    return this.mode
+  }
+
+  // Chỉ chữ: chờ các câu đang dịch xong (tối đa timeoutMs) — dùng trước khi tự tóm tắt lúc Dừng.
+  // Chế độ giọng: xong ngay.
+  async settleTranslations(timeoutMs: number): Promise<void> {
+    const sink = this.textSink
+    if (!sink) return
+    const deadline = Date.now() + timeoutMs
+    while (sink.pendingTranslations() > 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
   }
 
@@ -116,6 +155,12 @@ export class SessionManager extends EventEmitter {
     this.pttActive = false
     this.sessionStartedAt = Date.now()
     this.lastVoiceAt = Date.now()
+    this.connectedAt = 0
+    this.finalActiveSeconds = 0
+    this.translateError = undefined
+    this.mode = this.textSink && this.deps.getMode?.() === 'text' ? 'text' : 'speech'
+    this.sink = this.mode === 'text' && this.textSink ? this.textSink : this.speechSink
+    this.sink.reset()
     this.vad.reset()
     this.store.clear()
     this.setState('connecting')
@@ -138,6 +183,7 @@ export class SessionManager extends EventEmitter {
   }
 
   async stop(finalState: SessionState = 'idle', error?: string): Promise<void> {
+    this.finalActiveSeconds = this.activeSeconds()
     this.started = false
     this.paused = false
     if (this.metricsTimer) clearInterval(this.metricsTimer)
@@ -146,7 +192,8 @@ export class SessionManager extends EventEmitter {
     this.metricsTimer = this.goAwayTimer = this.reconnectTimer = null
     this.pendingFrames = []
     this.pttActive = false
-    this.store.finalizeOpenSegment()
+    // chỉ chữ: câu đang dở được chốt và vẫn dịch nốt sau khi Dừng
+    this.sink.flush()
     const session = this.session
     this.session = null
     try {
@@ -178,7 +225,7 @@ export class SessionManager extends EventEmitter {
     this.goAwayTimer = this.reconnectTimer = null
     // đang nói dở → báo hết lượt để Gemini dịch nốt câu đó (WS còn mở PAUSE_DISCONNECT_MS)
     if (this.state === 'streaming' || this.pttActive) {
-      this.store.finalizeOpenSegment()
+      this.sink.endTurn()
       try {
         this.session?.sendAudioStreamEnd()
       } catch (err) {
@@ -234,7 +281,7 @@ export class SessionManager extends EventEmitter {
     }
 
     if (result.streamEnd) {
-      this.store.finalizeOpenSegment()
+      this.sink.endTurn()
       try {
         this.session?.sendAudioStreamEnd()
       } catch (err) {
@@ -256,7 +303,7 @@ export class SessionManager extends EventEmitter {
       if (this.state === 'gated') this.setState('streaming')
       return
     }
-    this.store.finalizeOpenSegment()
+    this.sink.endTurn()
     try {
       this.session?.sendAudioStreamEnd()
     } catch (err) {
@@ -307,7 +354,8 @@ export class SessionManager extends EventEmitter {
   private async connect(): Promise<void> {
     const apiKey = this.deps.getApiKey()
     if (!apiKey) throw new Error('Chưa cấu hình Gemini API key')
-    const client = this.clients[Math.min(this.clientIndex, this.clients.length - 1)]
+    const clients = this.activeClients()
+    const client = clients[Math.min(this.clientIndex, clients.length - 1)]
     // box giữ danh tính kết nối: sự kiện close đến muộn của kết nối cũ không được phép
     // xoá session mới hay kích hoạt reconnect thừa
     const box: { session: GeminiLiveSession | null } = { session: null }
@@ -336,6 +384,7 @@ export class SessionManager extends EventEmitter {
       return
     }
     this.session = session
+    this.connectedAt = Date.now()
     this.backoffMs = 1000
     const queued = this.pendingFrames
     this.pendingFrames = []
@@ -347,10 +396,7 @@ export class SessionManager extends EventEmitter {
       this.resumptionHandle = ev.resumptionHandle
       this.resumptionHandleAt = Date.now()
     }
-    if (ev.inputTranscription) this.store.appendSource(ev.inputTranscription)
-    if (ev.outputTranscription) this.store.appendTarget(ev.outputTranscription)
-    if (ev.audioBase64) this.deps.onPlaybackChunk(Buffer.from(ev.audioBase64, 'base64'))
-    if (ev.turnComplete || ev.generationComplete) this.store.finalizeOpenSegment()
+    this.sink.handle(ev)
     if (ev.goAwayTimeLeftMs !== undefined) this.scheduleRotation(ev.goAwayTimeLeftMs)
   }
 
@@ -368,7 +414,7 @@ export class SessionManager extends EventEmitter {
 
   private async rotateSession(): Promise<void> {
     if (!this.started || this.paused) return
-    this.store.finalizeOpenSegment()
+    this.sink.flush()
     const old = this.session
     this.session = null
     try {
@@ -392,6 +438,7 @@ export class SessionManager extends EventEmitter {
     if (box.session && box.session !== this.session) return
     this.session = null
     if (!this.started) return
+    this.sink.connectionLost()
     // tạm dừng thì không nối lại ngay — resume() lo việc đó
     if (this.paused) return
 
@@ -403,7 +450,11 @@ export class SessionManager extends EventEmitter {
       return
     }
 
-    if (this.clientIndex === 0 && this.clients.length > 1 && isTranslationConfigRejection(ev.reason)) {
+    if (
+      this.clientIndex === 0 &&
+      this.activeClients().length > 1 &&
+      isTranslationConfigRejection(ev.reason)
+    ) {
       this.clientIndex = 1
       console.warn('SDK bị từ chối translationConfig — chuyển sang raw WebSocket client')
       this.reconnects += 1
@@ -456,6 +507,18 @@ export class SessionManager extends EventEmitter {
       } catch {
         /* đã đóng */
       }
+      // tự đóng thì handleClose bỏ qua → chỉ chữ: câu chưa có bản final thì chốt + dịch luôn
+      this.sink.connectionLost()
+    }
+    // Phiên chép lời tối đa 10 phút: xoay sớm lúc đang im lặng, quá hạn thì xoay bắt buộc
+    if (this.mode === 'text' && this.session && !this.paused && this.connectedAt) {
+      const age = now - this.connectedAt
+      if (
+        age >= TRANSCRIBE_MAX_SESSION_MS ||
+        (age >= TRANSCRIBE_ROTATE_WHEN_QUIET_MS && this.state === 'gated')
+      ) {
+        void this.rotateSession()
+      }
     }
     this.emit('metrics', this.metrics())
   }
@@ -464,15 +527,31 @@ export class SessionManager extends EventEmitter {
     return {
       rmsDb: Math.round(this.lastRmsDb * 10) / 10,
       secondsSent: Math.round(this.secondsSent * 10) / 10,
-      estimatedCostUsd: (this.secondsSent / 60) * PRICE_USD_PER_MINUTE,
+      estimatedCostUsd:
+        (this.secondsSent / 60) * this.sink.pricePerMinute + this.sink.extraCostUsd(),
       sessionSeconds: this.activeSeconds(),
       reconnects: this.reconnects
     }
   }
 
+  private activeClients(): GeminiLiveClient[] {
+    return this.mode === 'text' && this.deps.textMode ? [this.deps.textMode.client] : this.clients
+  }
+
+  // chi phí dịch tăng: đang chạy thì nhịp metrics tự gửi; đã Dừng (câu cuối dịch xong muộn) thì
+  // gửi 1 lần để chi phí ngày/tháng và mục lịch sử có đủ
+  private onExtraCost(): void {
+    if (!this.metricsTimer) this.emit('metrics', this.metrics())
+  }
+
+  private onTranslateError(message: string | null): void {
+    this.translateError = message ?? undefined
+    if (this.started) this.setState(this.state)
+  }
+
   // thời lượng phiên KHÔNG tính khoảng tạm dừng (đồng hồ đứng yên khi tạm dừng)
   private activeSeconds(): number {
-    if (!this.started) return 0
+    if (!this.started) return this.finalActiveSeconds
     const now = Date.now()
     const pausedMs = this.pausedTotalMs + (this.paused ? now - this.pausedAt : 0)
     return Math.max(0, Math.floor((now - this.sessionStartedAt - pausedMs) / 1000))
@@ -492,14 +571,20 @@ export class SessionManager extends EventEmitter {
     this.setState(this.vad.open ? 'streaming' : 'gated')
   }
 
-  private setState(state: SessionState, error?: string): void {
-    this.state = state
+  private stateInfo(error?: string): SessionStateInfo {
     const info: SessionStateInfo = {
-      state,
+      state: this.state,
       usingFallbackClient: this.clientIndex > 0
     }
     if (this.contextDisabled) info.contextDisabled = true
+    if (this.mode === 'text') info.textOnly = true
+    if (this.translateError) info.translateError = this.translateError
     if (error) info.error = error
-    this.emit('state', info)
+    return info
+  }
+
+  private setState(state: SessionState, error?: string): void {
+    this.state = state
+    this.emit('state', this.stateInfo(error))
   }
 }

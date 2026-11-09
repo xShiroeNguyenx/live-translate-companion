@@ -1,10 +1,19 @@
 import { ASSISTANT_MAX_QUESTION_CHARS } from '../../shared/constants'
 import { languageLabel } from '../../shared/languages'
 import { wallClock } from '../../shared/pause'
-import type { QaTurn, ReplySuggestion } from '../../shared/types'
-import type { TranscriptLine } from '../summary/summarizer'
+import type { HistoryRecord, QaTurn, ReplySuggestion } from '../../shared/types'
+import type { TranscriptInput, TranscriptLine } from '../summary/summarizer'
 
 // Trợ lý cuộc họp — phần thuần: dựng prompt, cắt transcript, đọc kết quả.
+
+// Cuộc họp ĐÃ KẾT THÚC (hỏi từ tab Lịch sử)
+export interface PastMeeting {
+  startedAt: number
+  endedAt: number
+  title?: string
+  // bản tóm tắt AI đã viết (nếu có) — chỉ để định hướng, transcript vẫn là nguồn chính
+  summary?: string
+}
 
 export interface AssistantPromptBase {
   lines: TranscriptLine[]
@@ -13,6 +22,8 @@ export interface AssistantPromptBase {
   language: string
   now: number
   maxChars: number
+  // có = hỏi lại về một phiên đã lưu; không có = cuộc họp đang diễn ra
+  past?: PastMeeting
 }
 
 export interface AskPromptInput extends AssistantPromptBase {
@@ -29,6 +40,33 @@ export interface ReplyPromptInput extends AssistantPromptBase {
 
 const MAX_ANSWER_CHARS = 2000
 const MAX_SUGGESTIONS = 5
+const MAX_SUMMARY_CHARS = 8000
+
+function meetingDate(ms: number): string {
+  const d = new Date(ms)
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
+}
+
+// "“Họp tiến độ”, ngày 29/10/2026, 15:47–16:10"
+export function pastMeetingLabel(past: PastMeeting): string {
+  const title = past.title?.trim()
+  const when = `ngày ${meetingDate(past.startedAt)}, ${wallClock(past.startedAt)}–${wallClock(past.endedAt)}`
+  return title ? `“${title}”, ${when}` : when
+}
+
+// Transcript của 1 phiên đã lưu. Phiên chiều về: kèm lời chiều đi chạy chồng thời gian ("Tôi"),
+// như khi tóm tắt. Phiên chiều đi: toàn bộ là lời của "Tôi".
+export function historyTranscript(
+  rec: HistoryRecord,
+  overlappingOutgoing: HistoryRecord[]
+): TranscriptInput {
+  if (rec.direction === 'incoming') return { incoming: rec, outgoing: overlappingOutgoing }
+  return {
+    incoming: { segments: [], startedAt: rec.startedAt, endedAt: rec.endedAt },
+    outgoing: [rec]
+  }
+}
 
 // Giữ phần CUỐI transcript trong giới hạn ký tự (câu hỏi thường về đoạn gần đây)
 export function clampLines(
@@ -63,15 +101,22 @@ export function recentCutoff(
 
 function header(input: AssistantPromptBase): string[] {
   const context = input.meetingContext.trim()
+  const past = input.past
   return [
-    `Bạn là trợ lý riêng của người dùng trong một cuộc họp đang diễn ra.`,
+    past
+      ? `Bạn là trợ lý riêng của người dùng. Người dùng đang hỏi lại về một cuộc họp ĐÃ KẾT THÚC: ${pastMeetingLabel(past)}.`
+      : `Bạn là trợ lý riêng của người dùng trong một cuộc họp đang diễn ra.`,
     `Transcript bên dưới là song ngữ (lời gốc + bản dịch máy). "Meeting" là những người khác trong cuộc họp, "Tôi" là người dùng. Mỗi dòng bắt đầu bằng giờ [HH:MM].`,
     `Bản dịch máy có thể sai — dựa vào cả lời gốc lẫn bản dịch để hiểu đúng ý.`,
     input.lines.some((l) => l.pause)
       ? `Dòng "TẠM DỪNG DỊCH" là khoảng người dùng tắt dịch — nội dung đoạn đó bị thiếu, đừng suy đoán.`
       : '',
-    `Bây giờ là ${wallClock(input.now)}.`,
-    context ? `\nNgữ cảnh / thuật ngữ do người dùng cung cấp:\n${context}` : ''
+    past ? '' : `Bây giờ là ${wallClock(input.now)}.`,
+    !context
+      ? ''
+      : past
+        ? `\nNgữ cảnh / thuật ngữ hiện có trong Cài đặt (có thể được soạn cho cuộc họp khác — chỉ dùng để hiểu tên riêng, thuật ngữ):\n${context}`
+        : `\nNgữ cảnh / thuật ngữ do người dùng cung cấp:\n${context}`
   ]
 }
 
@@ -90,14 +135,20 @@ export function buildAskPrompt(input: AskPromptInput): string {
         .map((t) => `Hỏi: ${t.question}\nĐáp: ${t.answer}`)
         .join('\n\n')}`
     : ''
+  const summary = input.past?.summary?.trim().slice(0, MAX_SUMMARY_CHARS)
   return [
     ...header(input),
     `\nTrả lời câu hỏi của người dùng bằng ${lang}:`,
-    `- Ngắn gọn, đi thẳng vào ý: tối đa khoảng 5 câu, hoặc gạch đầu dòng "- ".`,
+    input.past
+      ? `- Đi thẳng vào ý. Câu hỏi cần liệt kê (việc cần làm, các con số, ai nói gì…) thì dùng gạch đầu dòng "- ", đủ ý nhưng không lan man.`
+      : `- Ngắn gọn, đi thẳng vào ý: tối đa khoảng 5 câu, hoặc gạch đầu dòng "- ".`,
     `- Chỉ dựa vào transcript và ngữ cảnh. Khi nêu một ý cụ thể, ghi kèm giờ dạng (lúc 14:32).`,
     `- Nếu transcript không có thông tin đó, nói rõ là không thấy trong transcript. Không bịa.`,
     `- Viết văn bản thuần: không dùng tiêu đề, in đậm hay bảng Markdown.`,
     previous,
+    summary
+      ? `\n--- BẢN TÓM TẮT AI ĐÃ VIẾT TRƯỚC ĐÓ (chỉ để định hướng; có thể thiếu hoặc sai — luôn đối chiếu với transcript) ---\n${summary}`
+      : '',
     transcriptBlock('TRANSCRIPT', lines, truncated),
     `\n--- CÂU HỎI ---\n${input.question}`
   ]

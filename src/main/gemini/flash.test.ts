@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { generateContent } = vi.hoisted(() => ({ generateContent: vi.fn() }))
+const { generateContent, ctorOptions } = vi.hoisted(() => ({
+  generateContent: vi.fn(),
+  ctorOptions: [] as unknown[]
+}))
 vi.mock('@google/genai', () => ({
   GoogleGenAI: class {
     models = { generateContent }
+    constructor(opts: unknown) {
+      ctorOptions.push(opts)
+    }
   },
   ThinkingLevel: { LOW: 'LOW' }
 }))
@@ -32,6 +38,11 @@ describe('flash: token + chi phí', () => {
     expect(flashCostUsd({ inputTokens: 1_000_000, outputTokens: 0 })).toBeCloseTo(1.5)
     expect(flashCostUsd({ inputTokens: 0, outputTokens: 1_000_000 })).toBeCloseTo(7.5)
     expect(flashCostUsd({ inputTokens: 0, outputTokens: 0 })).toBe(0)
+  })
+
+  it('tính theo bảng giá truyền vào (vd. Flash-lite)', () => {
+    const lite = { input: 0.3, output: 2.5 }
+    expect(flashCostUsd({ inputTokens: 1_000_000, outputTokens: 1_000_000 }, lite)).toBeCloseTo(2.8)
   })
 
   it('nhận diện lỗi do thinkingLevel', () => {
@@ -89,5 +100,14 @@ describe('generateFlash', () => {
     expect(res).toEqual({ text: '', usage: { inputTokens: 7, outputTokens: 0 } })
     expect(generateContent.mock.calls[0][0].config.thinkingConfig).toBeUndefined()
     expect(generateContent.mock.calls[0][0].config.temperature).toBe(0.3)
+  })
+
+  it('timeoutMs → httpOptions.timeout; không có thì không gửi', async () => {
+    ctorOptions.length = 0
+    generateContent.mockResolvedValue(ok('x'))
+    await generateFlash({ apiKey: 'k', model: 'm', prompt: 'p', timeoutMs: 15000 })
+    await generateFlash({ apiKey: 'k', model: 'm', prompt: 'p' })
+    expect(ctorOptions[0]).toMatchObject({ httpOptions: { timeout: 15000 } })
+    expect((ctorOptions[1] as { httpOptions: object }).httpOptions).not.toHaveProperty('timeout')
   })
 })

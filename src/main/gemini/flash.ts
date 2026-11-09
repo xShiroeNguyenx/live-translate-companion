@@ -26,6 +26,8 @@ export interface FlashRequest {
   jsonSchema?: unknown
   // nghĩ ít (thinkingLevel LOW) để trả lời nhanh; model không nhận thì tự gọi lại không kèm
   fast?: boolean
+  // huỷ request treo quá lâu (ms)
+  timeoutMs?: number
 }
 
 interface UsageMeta {
@@ -42,12 +44,19 @@ export function usageFromMetadata(meta: UsageMeta | undefined): FlashUsage {
   }
 }
 
-export function flashCostUsd(usage: FlashUsage): number {
-  return (
-    (usage.inputTokens * FLASH_PRICE_USD_PER_M_INPUT +
-      usage.outputTokens * FLASH_PRICE_USD_PER_M_OUTPUT) /
-    1_000_000
-  )
+// USD / 1 triệu token
+export interface FlashPrices {
+  input: number
+  output: number
+}
+
+const FLASH_PRICES: FlashPrices = {
+  input: FLASH_PRICE_USD_PER_M_INPUT,
+  output: FLASH_PRICE_USD_PER_M_OUTPUT
+}
+
+export function flashCostUsd(usage: FlashUsage, prices: FlashPrices = FLASH_PRICES): number {
+  return (usage.inputTokens * prices.input + usage.outputTokens * prices.output) / 1_000_000
 }
 
 // API trả 400 khi model không nhận thinkingLevel (vd. dòng 2.x) — message có nhắc "thinking"
@@ -61,7 +70,10 @@ const noThinkingLevel = new Set<string>()
 export async function generateFlash(req: FlashRequest): Promise<FlashResult> {
   const ai = new GoogleGenAI({
     apiKey: req.apiKey,
-    httpOptions: { apiVersion: normalizeApiVersion(req.apiVersion) }
+    httpOptions: {
+      apiVersion: normalizeApiVersion(req.apiVersion),
+      ...(req.timeoutMs ? { timeout: req.timeoutMs } : {})
+    }
   })
   const call = async (withThinkingLevel: boolean): Promise<FlashResult> => {
     const res = await ai.models.generateContent({

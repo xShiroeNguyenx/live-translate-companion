@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { INCOMING_PAUSE_SHORTCUT } from '../../shared/constants'
 import { findKeyword, parseKeywords } from '../../shared/keywords'
 import { isPauseMarker, pauseLabel } from '../../shared/pause'
+import { AWAITING_TRANSLATION_LABEL, isAwaitingTranslation } from '../../shared/segments'
 import type { AppSettings, SubtitleSegment, SubtitleUpdate } from '../../shared/types'
 
 const HISTORY_LIMIT = 50
@@ -88,6 +89,11 @@ export function App(): React.JSX.Element {
             {seg.target.text && (
               <p className={`tgt ${seg.target.final ? '' : 'partial'}`} style={{ fontSize }}>
                 {seg.target.text}
+              </p>
+            )}
+            {isAwaitingTranslation(seg) && (
+              <p className="tgt partial" style={{ fontSize }}>
+                {AWAITING_TRANSLATION_LABEL}
               </p>
             )}
           </div>

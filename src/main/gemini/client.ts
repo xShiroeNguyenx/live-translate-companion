@@ -13,6 +13,8 @@ import {
 
 export interface LiveServerEvent {
   inputTranscription?: string
+  // model chép lời (chế độ chỉ chữ): giả thuyết tạm của câu đang nói, mỗi lần là cả câu
+  interimInputTranscription?: string
   outputTranscription?: string
   audioBase64?: string
   turnComplete?: boolean
@@ -47,7 +49,7 @@ export interface GeminiLiveSession {
 }
 
 export interface GeminiLiveClient {
-  readonly name: 'sdk' | 'raw-ws'
+  readonly name: 'sdk' | 'raw-ws' | 'transcribe'
   connect(opts: GeminiConnectOptions): Promise<GeminiLiveSession>
 }
 
@@ -82,6 +84,7 @@ interface RawServerMessage {
   serverContent?: {
     modelTurn?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> }
     inputTranscription?: { text?: string }
+    interimInputTranscription?: { text?: string }
     outputTranscription?: { text?: string }
     turnComplete?: boolean
     generationComplete?: boolean
@@ -96,6 +99,9 @@ export function normalizeServerMessage(msg: LiveServerMessage | RawServerMessage
   const inline = sc?.modelTurn?.parts?.find((p) => p?.inlineData?.data)?.inlineData
   const ev: LiveServerEvent = {}
   if (sc?.inputTranscription?.text) ev.inputTranscription = sc.inputTranscription.text
+  if (sc?.interimInputTranscription?.text) {
+    ev.interimInputTranscription = sc.interimInputTranscription.text
+  }
   if (sc?.outputTranscription?.text) ev.outputTranscription = sc.outputTranscription.text
   if (inline?.data) ev.audioBase64 = inline.data
   if (sc?.turnComplete) ev.turnComplete = true

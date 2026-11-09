@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.5.2] — 2026-11-09
+
+### Thêm mới
+- **Chế độ "Chỉ chữ" cho chiều về**, dành cho những cuộc họp chỉ cần đọc phụ đề. Rẻ hơn khoảng **3,5 lần** so với dịch có giọng.
+  - Chọn ở ô **🎚 Cách dịch** trên thẻ Chiều về (tab Dịch), trước khi bấm Bắt đầu: `🔊 Giọng + chữ` hoặc `📝 Chỉ chữ`. Trong lúc đang dịch thì ô này bị khoá; đổi chế độ có hiệu lực từ lần Bắt đầu sau.
+  - Chi phí khoảng **$0,01 cho mỗi phút có người nói**, so với khoảng $0,037 của chế độ có giọng.
+  - Câu gốc hiện dần trong lúc người khác đang nói. Bản dịch hiện **theo từng câu**, khoảng 1–2 giây sau khi người nói ngừng. Nếu người nói liền một mạch không ngừng thì khoảng 15 giây sẽ có một đoạn.
+  - Khi dịch từng câu, app dùng **Ngữ cảnh cuộc họp** (Cài đặt → Ngữ cảnh & từ khoá), nên tên riêng và thuật ngữ được dịch theo đúng bảng của bạn.
+  - Phụ đề, overlay, tự lưu, lịch sử, tóm tắt, trợ lý cuộc họp và thông báo từ khoá vẫn chạy như ở chế độ có giọng. Nếu bấm Dừng giữa câu, câu đó vẫn được dịch nốt, rồi app mới tự tóm tắt.
+  - Câu nào dịch lỗi thì hiện `⚠ Không dịch được câu này` thay vì để trống. Nếu lỗi nhiều câu liên tiếp (sai key, hết quota), thẻ Chiều về hiện cảnh báo kèm nguyên nhân.
+  - Cách hoạt động: model dịch Live luôn tạo ra (và tính tiền) giọng dịch, kể cả khi đã tắt "Phát giọng dịch". Vì vậy chế độ chỉ chữ dùng model chép lời `gemini-3.5-transcribe-live`, rồi dịch từng câu bằng `gemini-flash-lite-latest`.
+- **Hỏi về một cuộc họp đã lưu**, ngay trong tab Lịch sử: mở một phiên, gõ câu hỏi vào ô **🤖 Hỏi về cuộc họp này**, ví dụ "Ai phụ trách việc test, hạn khi nào?".
+  - AI đọc lại **toàn bộ** transcript của phiên đó, gồm cả lời bạn nói qua chiều đi trong cùng khoảng thời gian, và dùng bản tóm tắt (nếu có) để định hướng. Câu trả lời kèm giờ để đối chiếu, ví dụ "(lúc 15:53)". Thông tin không có trong transcript thì AI nói là không thấy chứ không đoán.
+  - Có sẵn 4 **câu hỏi nhanh**, bấm một lần là hỏi: 📋 Việc tôi cần làm · ✅ Đã chốt gì · 📅 Các mốc thời gian · ❓ Còn bỏ ngỏ.
+  - Hỏi nối tiếp được ("còn việc đó thì hạn là ngày nào?"). Các lượt hỏi đáp được giữ riêng cho từng phiên cho tới khi tắt app.
+  - Ô hỏi hiện chi phí ước tính cho mỗi câu hỏi, vì mỗi lần hỏi đều gửi lại cả transcript. Một cuộc họp khoảng 30 phút tốn khoảng $0,03 mỗi câu. Chi phí này được tính vào chi phí ngày/tháng và giới hạn tháng.
+  - Dùng model của mục tóm tắt (mặc định `gemini-flash-latest`).
+
+### Thay đổi
+- **Câu trả lời của trợ lý gọn và dễ đọc hơn**, cả ở Trợ lý cuộc họp (tab Dịch) lẫn khung hỏi về phiên đã lưu (tab Lịch sử).
+  - Mỗi lượt hỏi đáp **thu gọn được**: câu mới nhất tự mở, các câu cũ tự thu lại còn một dòng (câu hỏi kèm dòng đầu câu trả lời). Bấm vào đầu mục để mở hoặc thu, có thêm nút **Thu gọn tất cả / Mở tất cả**. Hỏi nhiều câu, danh sách vẫn ngắn.
+  - Gạch đầu dòng hiện thành danh sách. Giờ được nhắc tới trong câu trả lời, ví dụ "(lúc 16:08)", hiện thành nhãn nhỏ để dò lại transcript.
+  - Có nút **📋 Copy câu trả lời**. Khung hỏi đáp có viền màu riêng, nút **Hỏi** nổi bật hơn để dễ nhận ra.
+
+### Sửa lỗi
+- **Chi phí ước tính của chế độ dịch có giọng thấp hơn thực tế khoảng 37%.** App tính $0,023/phút, nhưng Google tính $0,0368/phút: $0,0053 cho audio gửi lên và $0,0315 cho giọng dịch trả về. Mức mới đã được đối chiếu với số token Google báo về và áp dụng cho cả 2 chiều. Số liệu của các ngày trước vẫn giữ nguyên.
+
+### Lưu ý
+- Ở chế độ có giọng, tắt "Phát giọng dịch" chỉ làm im loa chứ **không** giảm tiền. Muốn giảm tiền thì chọn "Chỉ chữ".
+- Chiều đi vẫn chỉ có chế độ có giọng, vì cần phát giọng dịch vào meeting.
+
 ## [0.5.1] — 2026-11-06
 
 ### Thêm mới

@@ -16,6 +16,7 @@ import type { AppSettings } from '../shared/types'
 
 export const DEFAULT_SETTINGS: AppSettings = {
   targetLanguage: 'vi',
+  incomingMode: 'speech',
   playbackEnabled: false,
   playbackDeviceId: '',
   playbackDeviceLabel: '',
@@ -45,13 +46,22 @@ export const DEFAULT_SETTINGS: AppSettings = {
   minimizeToTray: true
 }
 
+// giá trị lạ (settings.json sửa tay, bản cũ) → về mặc định
+function normalize(s: AppSettings): AppSettings {
+  return {
+    ...s,
+    apiVersion: normalizeApiVersion(s.apiVersion),
+    incomingMode: s.incomingMode === 'text' ? 'text' : 'speech'
+  }
+}
+
 export class SettingsStore extends EventEmitter {
   private settings: AppSettings
 
   constructor(private file: string = join(app.getPath('userData'), 'settings.json')) {
     super()
     const loaded = { ...DEFAULT_SETTINGS, ...this.load() }
-    this.settings = { ...loaded, apiVersion: normalizeApiVersion(loaded.apiVersion) }
+    this.settings = normalize(loaded)
   }
 
   private load(): Partial<AppSettings> {
@@ -67,8 +77,7 @@ export class SettingsStore extends EventEmitter {
   }
 
   set(patch: Partial<AppSettings>): AppSettings {
-    this.settings = { ...this.settings, ...patch }
-    this.settings.apiVersion = normalizeApiVersion(this.settings.apiVersion)
+    this.settings = normalize({ ...this.settings, ...patch })
     try {
       mkdirSync(dirname(this.file), { recursive: true })
       writeFileSync(this.file, JSON.stringify(this.settings, null, 2), 'utf-8')

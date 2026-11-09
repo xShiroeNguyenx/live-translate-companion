@@ -194,3 +194,98 @@ describe('SubtitleStore mốc tạm dừng', () => {
     expect(store.export('txt')).toBe('')
   })
 })
+
+describe('SubtitleStore — chế độ chỉ chữ (interim + điền bản dịch sau)', () => {
+  it('interim thay hẳn câu gốc mỗi lần, cùng 1 id', () => {
+    const { store, updates } = makeStore()
+    store.setInterim('Good')
+    store.setInterim('Good morning')
+    const ids = updates.flatMap((u) => (u.type === 'segment' ? [u.segment.id] : []))
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(1)
+    expect(store.history().map((s) => s.source.text)).toEqual(['Good morning'])
+    expect(store.history()[0].source.final).toBe(false)
+  })
+
+  it('commitSource dùng lại id của interim, chờ dịch; fillTarget điền đúng câu', () => {
+    const { store } = makeStore()
+    store.setInterim('Good morning everyone')
+    const interimId = store.history()[0].id
+    const id = store.commitSource(' Good morning everyone. ')
+    expect(id).toBe(interimId)
+    expect(store.hasInterim()).toBe(false)
+    let seg = store.history()[0]
+    expect(seg.source).toEqual({ text: 'Good morning everyone.', final: true })
+    expect(seg.target).toEqual({ text: '', final: false })
+
+    expect(store.fillTarget(id!, ' Chào buổi sáng mọi người. ')).toBe(true)
+    seg = store.history()[0]
+    expect(seg.target).toEqual({ text: 'Chào buổi sáng mọi người.', final: true })
+  })
+
+  it('bản dịch về lệch thứ tự vẫn điền đúng theo id', () => {
+    const { store } = makeStore()
+    const a = store.commitSource('One.')!
+    const b = store.commitSource('Two.')!
+    store.fillTarget(b, 'Hai.')
+    store.fillTarget(a, 'Một.')
+    expect(store.history().map((s) => s.target.text)).toEqual(['Một.', 'Hai.'])
+  })
+
+  it('finalizeOpenSegment / mốc tạm dừng không chốt interim', () => {
+    const { store, clock } = makeStore()
+    store.setInterim('Still talking')
+    store.finalizeOpenSegment()
+    store.addPauseMarker(clock.now, clock.now + 1000)
+    expect(store.hasInterim()).toBe(true)
+    const id = store.commitSource('Still talking about it.')
+    // không có câu trùng: chỉ mốc tạm dừng + câu đã chốt
+    const spoken = store.history().filter((s) => s.pauseEndedAt === undefined)
+    expect(spoken).toHaveLength(1)
+    expect(spoken[0].id).toBe(id)
+  })
+
+  it('final rỗng → bỏ interim khỏi giao diện, không tạo câu', () => {
+    const { store, updates } = makeStore()
+    store.setInterim('uh')
+    expect(store.commitSource('  ')).toBeNull()
+    expect(store.isEmpty()).toBe(true)
+    expect(updates.at(-1)).toEqual({ type: 'history', segments: [] })
+  })
+
+  it('commitInterim chốt câu đang dở khi Dừng; không có interim → null', () => {
+    const { store } = makeStore()
+    expect(store.commitInterim()).toBeNull()
+    store.setInterim('Half a sentence')
+    const res = store.commitInterim()
+    expect(res?.text).toBe('Half a sentence')
+    expect(store.history()[0].source.final).toBe(true)
+  })
+
+  it('id của phiên trước (đã clear) → fillTarget bỏ qua', () => {
+    const { store } = makeStore()
+    const old = store.commitSource('Old.')!
+    store.clear()
+    expect(store.fillTarget(old, 'Cũ.')).toBe(false)
+    expect(store.isEmpty()).toBe(true)
+  })
+
+  it('clear xoá interim; isEmpty tính cả interim', () => {
+    const { store } = makeStore()
+    store.setInterim('x')
+    expect(store.isEmpty()).toBe(false)
+    store.clear()
+    expect(store.isEmpty()).toBe(true)
+    expect(store.hasInterim()).toBe(false)
+  })
+
+  it('export khi còn câu chưa dịch: vẫn có câu gốc', () => {
+    const { store } = makeStore()
+    const a = store.commitSource('Translated.')!
+    store.fillTarget(a, 'Đã dịch.')
+    store.commitSource('Pending.')
+    const txt = store.export('txt')
+    expect(txt).toContain('Translated.\n         → Đã dịch.')
+    expect(txt).toContain('Pending.')
+  })
+})

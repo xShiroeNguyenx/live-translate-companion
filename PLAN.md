@@ -68,7 +68,7 @@ API **có thật**, Google phát hành public preview ngày **09/06/2026**:
 | Audio ra | PCM 16-bit, **24kHz**, mono (giọng dịch) + transcript text vào/ra |
 | Cấu hình | `generationConfig.translationConfig { targetLanguageCode: "vi", echoTargetLanguage: false }` + `inputAudioTranscription {}` / `outputAudioTranscription {}` |
 | Ngôn ngữ nguồn | **Tự nhận diện** 70+ ngôn ngữ (gồm `ja`, `en`, `vi`) — không cần chọn Nhật/Anh thủ công |
-| Giá | ~**$0.023/phút** audio đầu vào |
+| Giá | **$0.0368/phút**: audio vào $0.0053 + **giọng dịch ra $0.0315** (25 token/giây mỗi chiều; đối chiếu `usageMetadata` 09/11/2026). Giọng dịch luôn được sinh và tính tiền, kể cả khi yêu cầu `TEXT` → xem mục 11 |
 | Giới hạn phiên | Session ~15 phút (nới bằng `contextWindowCompression`), kết nối WS ~10 phút, có `GoAway { timeLeft }` báo trước + `sessionResumption` (handle sống 2h) |
 | `echoTargetLanguage: false` | Tiếng Việt trong meeting → model **im lặng** (không dịch lại) — đồng thời là chốt chặn vòng lặp tự dịch chính mình |
 | SDK | `@google/genai` hỗ trợ Live API (`ai.live.connect`); API mới 3 ngày nên **cần verify SDK đã expose `translationConfig` chưa** — có fallback raw WebSocket |
@@ -309,3 +309,34 @@ Gemini ──► audio 24kHz giọng Nhật ──► PcmPlayer instance #2 (eng
 | Mic BT chuyển profile HFP → audio vào kém | Trung bình | Khuyến nghị mic có dây/webcam mic; hiện sample rate mic trong UI |
 | Mic nghe lỏm loa → dịch nhầm tiếng Anh từ meeting | Trung bình | Tai nghe + PTT (chính); ngưỡng VAD riêng cho mic |
 | Chi phí ×2 khi cả 2 chiều cùng nói | Chắc chắn | VAD/PTT gate cả 2 đầu; meter tách 2 phiên cho minh bạch |
+
+## 11. Chế độ "Chỉ chữ" cho chiều về (0.5.2)
+
+### 11.1 Vì sao không dùng model dịch Live với `TEXT`
+Đã thử bằng API key thật (09/11/2026):
+
+| Cấu hình | Kết quả |
+|---|---|
+| `gemini-3.5-live-translate-preview` + `responseModalities: ['TEXT']` | Server **nhận mà không báo lỗi nhưng bỏ qua**: vẫn trả audio, `usageMetadata` vẫn ghi 25 token audio vào + 25 token audio ra mỗi giây |
+| `gemini-3.8-live`, `gemini-3.1-flash-live-preview` + `TEXT` | Bị từ chối: `response modalities (TEXT) is not supported by the model` |
+| **`gemini-3.5-transcribe-live` (TEXT) → dịch từng câu bằng `gemini-flash-lite-latest`** | Chạy được; đo ≈ **$0.0099/phút gửi** (chép lời $0.009 + Flash-lite ≈ $0.001) |
+
+### 11.2 Luồng
+```
+audio 16kHz ─VAD gate─► gemini-3.5-transcribe-live (WS, v1beta, TEXT, languageCodes: [])
+                          │ interimInputTranscription → store.setInterim (câu gốc hiện dần)
+                          └ inputTranscription (final) → store.commitSource → SegmentTranslator
+                                                          └ Flash-lite (≤3 câu song song, 3 câu trước làm ngữ cảnh
+                                                            + Ngữ cảnh cuộc họp) → store.fillTarget(id)
+```
+- `SessionManager` giữ nguyên VAD / tạm dừng / nối lại / GoAway; phần biến sự kiện server thành phụ đề tách ra `SubtitleSink` (`SpeechSink` = hành vi cũ, `TextSink` = chỉ chữ), chọn lúc Bắt đầu theo `settings.incomingMode`.
+- Hết lượt nói: vẫn gửi `audioStreamEnd` (server chốt câu ngay) nhưng **không** tự chốt interim, chờ bản final. Dừng / xoay / rớt kết nối: chốt interim còn dở và dịch nốt.
+- Phiên chép lời giới hạn 10 phút: xoay chủ động khi im lặng sau 8 phút, bắt buộc ở 9,5 phút.
+- Chi phí phiên = giây gửi × $0.009/60 + tiền Flash-lite theo token thật. Bản dịch về muộn sau khi Dừng vẫn phát `metrics` để chi phí ngày/tháng + lịch sử đủ; tự tóm tắt chờ các câu dịch xong (tối đa 8 giây).
+
+### 11.3 Đã thử và bỏ
+- **Cắt câu sớm** bằng `audioStreamEnd` khi interim kết thúc câu (để người nói liền một mạch không phải chờ): **mất chữ ở chỗ cắt** (2/82 chữ). Không cắt thì server tự chốt khoảng mỗi 13–15 giây, đủ dùng.
+- `gemini-flash-latest` để dịch: suy nghĩ mặc định 230–550 token mỗi câu, mất 4–6 giây. Flash-lite: 0 token suy nghĩ, 0,6–0,9 giây.
+
+### 11.4 Chưa kiểm chứng
+- Tiếng Nhật thật (máy chỉ có giọng TTS tiếng Anh); phiên > 10 phút với key thật; GUI.

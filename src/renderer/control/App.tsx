@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { INCOMING_PAUSE_SHORTCUT, INCOMING_TOGGLE_SHORTCUT } from '../../shared/constants'
+import {
+  INCOMING_PAUSE_SHORTCUT,
+  INCOMING_TOGGLE_SHORTCUT,
+  PRICE_USD_PER_MINUTE,
+  TEXT_MODE_EST_USD_PER_MINUTE
+} from '../../shared/constants'
 import { parseKeywords } from '../../shared/keywords'
 import { languageShort } from '../../shared/languages'
 import { MAX_TITLE_CHARS } from '../../shared/meeting-title'
-import type { ExportFormat } from '../../shared/types'
+import type { ExportFormat, IncomingMode } from '../../shared/types'
 import { AssistantPanel } from './AssistantPanel'
 import { HistoryPanel } from './HistoryPanel'
 import { OutgoingPanel } from './OutgoingPanel'
@@ -22,6 +27,33 @@ type Tab = 'main' | 'history' | 'settings'
 
 const TOGGLE_HINT = INCOMING_TOGGLE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
 const PAUSE_HINT = INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')
+const perMinute = (usd: number): string => `≈ $${usd.toFixed(3)}/phút nói`
+
+// Chọn cách dịch cho cuộc họp sắp bắt đầu (khoá trong lúc đang dịch)
+function IncomingModeField(): React.JSX.Element {
+  const mode = useControlStore((s) => s.settings?.incomingMode ?? 'speech')
+  const patchSettings = useControlStore((s) => s.patchSettings)
+  return (
+    <>
+      <div className="row">
+        <span className="field-label">🎚 Cách dịch</span>
+        <select
+          value={mode}
+          onChange={(e) => void patchSettings({ incomingMode: e.target.value as IncomingMode })}
+        >
+          <option value="speech">🔊 Giọng + chữ ({perMinute(PRICE_USD_PER_MINUTE)})</option>
+          <option value="text">📝 Chỉ chữ ({perMinute(TEXT_MODE_EST_USD_PER_MINUTE)})</option>
+        </select>
+      </div>
+      {mode === 'text' && (
+        <p className="hint">
+          Không có giọng dịch. Bản dịch hiện theo từng câu, sau khi người nói ngừng 1–2 giây (câu
+          gốc hiện dần trong lúc chờ). Ngữ cảnh cuộc họp được dùng khi dịch.
+        </p>
+      )}
+    </>
+  )
+}
 
 function UsageBar(): React.JSX.Element {
   const usage = useControlStore((s) => s.usage)
@@ -116,8 +148,11 @@ export function App(): React.JSX.Element {
   const sinkCaptured = sinkState
     ? sinkState.isCaptured
     : (selectedDevice?.isCaptured ?? isDefaultDevice(settings.playbackDeviceId))
-  const feedbackRisk = settings.playbackEnabled && sinkCaptured
-  const sinkError = settings.playbackEnabled && sinkState && !sinkState.ok ? sinkState.error : null
+  // chỉ chữ không phát giọng dịch → các cảnh báo về thiết bị phát không áp dụng
+  const textOnly = running ? !!session.textOnly : settings.incomingMode === 'text'
+  const playing = settings.playbackEnabled && !textOnly
+  const feedbackRisk = playing && sinkCaptured
+  const sinkError = playing && sinkState && !sinkState.ok ? sinkState.error : null
   const openSettings = (): void => setTab('settings')
   const openHistory = (id: string | null): void => {
     setHistoryId(id)
@@ -263,12 +298,15 @@ export function App(): React.JSX.Element {
               <h2>Chiều về · meeting → {languageShort(settings.targetLanguage)}</h2>
               <span className="state-label">{STATE_LABELS[session.state]}</span>
               {session.usingFallbackClient && <span className="badge">raw-ws</span>}
+              {running && session.textOnly && <span className="badge">📝 Chỉ chữ</span>}
             </div>
             {session.contextDisabled && (
               <Warn onFix={openSettings}>
                 Model không nhận “Ngữ cảnh cuộc họp” — phiên này dịch không có ngữ cảnh.
               </Warn>
             )}
+            {running && session.translateError && <Warn>{session.translateError}</Warn>}
+            {!running && <IncomingModeField />}
             <div className="row">
               <button
                 className={running ? 'btn-stop' : 'btn-start'}

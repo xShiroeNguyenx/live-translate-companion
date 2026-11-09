@@ -67,6 +67,8 @@ const api: ControlApi = {
   listLiveModels: () => ipcRenderer.invoke('models:listLive'),
   askAssistant: (question: string, previous: QaTurn[]) =>
     ipcRenderer.invoke('assistant:ask', question, previous),
+  askHistory: (id: string, question: string, previous: QaTurn[]) =>
+    ipcRenderer.invoke('history:ask', id, question, previous),
   suggestReplies: () => ipcRenderer.invoke('assistant:replies'),
   copyText: (text: string) => ipcRenderer.invoke('clipboard:write', text),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),

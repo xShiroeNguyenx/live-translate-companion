@@ -6,7 +6,8 @@ import {
   INCOMING_TOGGLE_SHORTCUT,
   OUTGOING_PTT_SHORTCUT,
   OVERLAY_TOGGLE_SHORTCUT,
-  SUMMARY_MIN_CHARS
+  SUMMARY_MIN_CHARS,
+  TEXT_TRANSLATE_SETTLE_MS
 } from '../shared/constants'
 import { IPC } from '../shared/ipc-contract'
 import { meetingTitleOf, normalizeTitle } from '../shared/meeting-title'
@@ -22,6 +23,7 @@ import { DebugRecorder } from './debug-recorder'
 import { buildContextInstruction, SdkLiveClient } from './gemini/client'
 import { RawWsLiveClient } from './gemini/raw-ws-client'
 import { SessionManager } from './gemini/session-manager'
+import { TranscribeLiveClient } from './gemini/transcribe-client'
 import { HistoryStore } from './history/history-store'
 import { MeetingTitleTracker } from './history/meeting-title-tracker'
 import { registerIpc } from './ipc'
@@ -36,6 +38,7 @@ import {
   type AutoSaveSession
 } from './subtitles/autosave'
 import { SubtitleStore } from './subtitles/store'
+import { createFlashTranslate } from './translate/flash-translate'
 import { AppTray } from './tray'
 import { initUpdater } from './updater'
 import { UsageTracker } from './usage/usage-tracker'
@@ -158,6 +161,16 @@ if (gotLock) {
       getSystemInstruction: contextInstruction,
       getLiveModel: () => settings.get().liveModel,
       getApiVersion: () => settings.get().apiVersion,
+      getMode: () => settings.get().incomingMode,
+      // chỉ chữ: chép lời bằng Live, dịch từng câu bằng Flash-lite (ngữ cảnh cuộc họp áp vào bản dịch)
+      textMode: {
+        client: new TranscribeLiveClient(),
+        translate: createFlashTranslate({
+          getApiKey: () => getApiKey(),
+          getTargetLanguage: () => settings.get().targetLanguage,
+          getContext: () => settings.get().meetingContext
+        })
+      },
       startCapture: () => startEngineCapture(engine),
       stopCapture: () => stopEngineCapture(engine),
       onPlaybackChunk: (pcm) => {
@@ -281,11 +294,12 @@ if (gotLock) {
     })
     history.on('change', () => sendToControl(IPC.evHistoryChanged, null))
 
-    const maybeAutoSummarize = (): void => {
+    // id = phiên vừa kết thúc (chốt lúc Dừng: lúc chạy tới đây có thể đã Bắt đầu phiên mới)
+    const maybeAutoSummarize = (id: string | undefined): void => {
       const s = settings.get()
-      const id = incomingSaver.currentSession?.id
       if (!s.autoSummary || !s.autoSaveEnabled || !id) return
-      const chars = store.history().reduce((n, seg) => n + seg.target.text.trim().length, 0)
+      const segments = history.get(id)?.segments ?? []
+      const chars = segments.reduce((n, seg) => n + seg.target.text.trim().length, 0)
       if (chars < SUMMARY_MIN_CHARS) return
       // bản "tóm tắt đến giờ" còn đang chạy → xếp hàng, chạy lại với transcript đầy đủ
       void summary.summarize(id, { queueIfRunning: true })
@@ -348,7 +362,10 @@ if (gotLock) {
       getSettings: () => settings.get(),
       getTranscript: liveTranscript,
       budgetError,
-      onCost: recordFlashCost
+      onCost: recordFlashCost,
+      // hỏi về phiên đã lưu (tab Lịch sử)
+      getRecord: (id) => history.get(id),
+      getOverlappingOutgoing: (rec) => history.overlappingOutgoing(rec)
     })
 
     const guardedStart = async (
@@ -422,7 +439,15 @@ if (gotLock) {
       if (info.state === 'idle' || info.state === 'error') {
         incomingSaver.flush()
         usage.flush()
-        maybeAutoSummarize()
+        // chỉ chữ: câu cuối thường còn đang dịch (~1s) → chờ xong, ghi lại rồi mới tóm tắt
+        const endedId = incomingSaver.currentSession?.id
+        void sessions.settleTranslations(TEXT_TRANSLATE_SETTLE_MS).then(() => {
+          if (endedId && endedId === incomingSaver.currentSession?.id && !sessions.isStarted()) {
+            incomingSaver.flush()
+          }
+          usage.flush()
+          maybeAutoSummarize(endedId)
+        })
       } else if (info.state === 'paused') {
         // tạm dừng: ghi đĩa phần đã có, nhưng chưa tóm tắt (phiên chưa kết thúc)
         incomingSaver.flush()

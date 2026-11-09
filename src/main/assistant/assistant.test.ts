@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { TranscriptLine } from '../summary/summarizer'
+import type { HistoryRecord } from '../../shared/types'
+import { transcriptLines, type TranscriptLine } from '../summary/summarizer'
 import {
   buildAskPrompt,
   buildReplyPrompt,
   clampLines,
+  historyTranscript,
   parseReplyResult,
+  pastMeetingLabel,
   recentCutoff,
   sanitizeTurns,
   shortError
@@ -94,6 +97,92 @@ describe('buildAskPrompt', () => {
     expect(p).toContain('đừng suy đoán')
     expect(p).toContain('chỉ giữ phần từ 14:02 trở đi')
     expect(p).not.toContain('x'.repeat(50))
+  })
+})
+
+describe('buildAskPrompt — hỏi về phiên đã lưu', () => {
+  const base = {
+    lines: [line(5, '[14:05] Meeting: 納期は金曜日 (dịch: Hạn là thứ 6)')],
+    meetingContext: 'Dự án ABC',
+    language: 'vi',
+    now: T0 + 3 * 24 * 60 * MIN, // hỏi 3 ngày sau cuộc họp
+    maxChars: 10_000,
+    question: 'Hạn là ngày nào?',
+    previous: [],
+    past: { startedAt: T0, endedAt: T0 + 22 * MIN, title: 'Họp tiến độ', summary: '## Tóm tắt\n- Hạn thứ 6' }
+  }
+
+  it('nói rõ cuộc họp đã kết thúc (tên, ngày, giờ), không có "Bây giờ là"', () => {
+    const p = buildAskPrompt(base)
+    expect(p).toContain('ĐÃ KẾT THÚC: “Họp tiến độ”, ngày 06/11/2026, 14:00–14:22')
+    expect(p).not.toContain('Bây giờ là')
+    expect(p).not.toContain('đang diễn ra')
+  })
+
+  it('kèm bản tóm tắt để định hướng, nhắc đối chiếu transcript; transcript đứng sau', () => {
+    const p = buildAskPrompt(base)
+    expect(p).toContain('BẢN TÓM TẮT AI ĐÃ VIẾT TRƯỚC ĐÓ')
+    expect(p).toContain('luôn đối chiếu với transcript')
+    expect(p.indexOf('## Tóm tắt\n- Hạn thứ 6')).toBeLessThan(p.indexOf('--- TRANSCRIPT ---'))
+  })
+
+  it('ngữ cảnh trong Cài đặt có thể của cuộc họp khác → chỉ dùng như thuật ngữ', () => {
+    const p = buildAskPrompt(base)
+    expect(p).toContain('có thể được soạn cho cuộc họp khác')
+    expect(p).toContain('Dự án ABC')
+  })
+
+  it('không tên / không tóm tắt → bỏ các phần đó; tóm tắt quá dài bị cắt', () => {
+    const p = buildAskPrompt({ ...base, past: { startedAt: T0, endedAt: T0 + MIN } })
+    expect(p).toContain('ĐÃ KẾT THÚC: ngày 06/11/2026, 14:00–14:01')
+    expect(p).not.toContain('BẢN TÓM TẮT')
+    const long = buildAskPrompt({ ...base, past: { ...base.past, summary: 'y'.repeat(20_000) } })
+    expect(long).not.toContain('y'.repeat(8001))
+    expect(long).toContain('y'.repeat(8000))
+  })
+
+  it('pastMeetingLabel', () => {
+    expect(pastMeetingLabel({ startedAt: T0, endedAt: T0 + 90 * MIN, title: '  ' })).toBe(
+      'ngày 06/11/2026, 14:00–15:30'
+    )
+  })
+})
+
+describe('historyTranscript', () => {
+  function rec(direction: 'incoming' | 'outgoing', minute: number, src: string): HistoryRecord {
+    return {
+      id: `${direction}-${minute}`,
+      direction,
+      startedAt: T0,
+      endedAt: T0 + 30 * MIN,
+      targetLanguage: direction === 'incoming' ? 'vi' : 'ja',
+      secondsSent: 1,
+      costUsd: 0,
+      transcriptFile: null,
+      segments: [
+        {
+          id: 's',
+          startedAt: T0 + minute * MIN,
+          source: { text: src, final: true },
+          target: { text: '', final: true }
+        }
+      ]
+    }
+  }
+
+  it('phiên chiều về: lời họ là "Meeting", lời chiều đi cùng giờ là "Tôi"', () => {
+    const lines = transcriptLines(
+      historyTranscript(rec('incoming', 1, 'Họ nói'), [rec('outgoing', 2, 'Tôi nói')]),
+      { clock: 'wall' }
+    ).map((l) => l.text)
+    expect(lines).toEqual(['[14:01] Meeting: Họ nói', '[14:02] Tôi: Tôi nói'])
+  })
+
+  it('phiên chiều đi: toàn bộ là "Tôi"', () => {
+    const lines = transcriptLines(historyTranscript(rec('outgoing', 3, 'Tôi nói'), []), {
+      clock: 'wall'
+    }).map((l) => l.text)
+    expect(lines).toEqual(['[14:03] Tôi: Tôi nói'])
   })
 })
 

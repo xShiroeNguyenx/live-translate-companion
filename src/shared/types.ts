@@ -18,6 +18,10 @@ export interface SessionStateInfo {
   usingFallbackClient?: boolean
   // model Live từ chối systemInstruction → phiên này chạy không có ngữ cảnh cuộc họp
   contextDisabled?: boolean
+  // phiên đang chạy ở chế độ chỉ chữ (chép lời + dịch từng câu, không có giọng dịch)
+  textOnly?: boolean
+  // chế độ chỉ chữ: dịch câu lỗi liên tiếp (sai key, hết quota…)
+  translateError?: string
 }
 
 export interface Metrics {
@@ -44,8 +48,12 @@ export type SubtitleUpdate =
 
 export type OutgoingMode = 'vad' | 'ptt'
 
+// Chiều về: 'speech' = model dịch Live (giọng + chữ); 'text' = chỉ chữ (rẻ hơn, không có giọng dịch)
+export type IncomingMode = 'speech' | 'text'
+
 export interface AppSettings {
   targetLanguage: string
+  incomingMode: IncomingMode
   playbackEnabled: boolean
   playbackDeviceId: string
   // deviceId bị Chromium salt theo origin/lần chạy — lưu thêm label để engine tìm lại thiết bị

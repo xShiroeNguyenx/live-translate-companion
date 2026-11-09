@@ -119,6 +119,9 @@ export function registerIpc(ctx: IpcContext): void {
     ctx.assistant.ask(question, previous)
   )
   ipcMain.handle(IPC.assistantReplies, () => ctx.assistant.suggestReplies())
+  ipcMain.handle(IPC.historyAsk, (_e, id: unknown, question: unknown, previous: unknown) =>
+    ctx.assistant.askHistory(id, question, previous)
+  )
   ipcMain.handle(IPC.clipboardWrite, (_e, text: unknown) => {
     if (typeof text === 'string') clipboard.writeText(text.slice(0, 10_000))
   })

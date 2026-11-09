@@ -1,6 +1,6 @@
 # Live Translate Companion
 
-> Desktop app (Windows 11) dịch trực tiếp audio cuộc họp Google Meet / Zoom sang tiếng Việt theo thời gian thực bằng **Gemini 3.5 Live Translate** (`gemini-3.5-live-translate-preview`) — có **phụ đề song ngữ**, **phát giọng dịch**, và **chiều đi** (nói tiếng Việt → giọng Nhật/Anh… phát vào meeting).
+> Desktop app (Windows 11) dịch trực tiếp audio cuộc họp Google Meet / Zoom sang tiếng Việt theo thời gian thực bằng **Gemini 3.5 Live Translate** (`gemini-3.5-live-translate-preview`) — có **phụ đề song ngữ**, **phát giọng dịch**, chế độ **chỉ chữ** rẻ hơn ~3,5 lần, và **chiều đi** (nói tiếng Việt → giọng Nhật/Anh… phát vào meeting).
 
 ![CI](https://github.com/xShiroeNguyenx/live-translate-companion/actions/workflows/ci.yml/badge.svg)
 
@@ -14,14 +14,17 @@ Chạy song song với mọi app họp bằng cách bắt **audio hệ thống**
 
 **Chiều về — nghe meeting → tiếng Việt** *(hoặc Anh/Nhật/Hàn/Trung… — chọn trong Cài đặt)*
 - **Ngôn ngữ nguồn tự nhận diện** (Nhật/Anh/70+ ngôn ngữ) — chỉ cấu hình ngôn ngữ đích.
+- **2 cách dịch**, chọn cho từng cuộc họp ngay trên tab Dịch:
+  - **🔊 Giọng + chữ** (~$0.037/phút nói): phụ đề chạy theo từng từ, có giọng dịch.
+  - **📝 Chỉ chữ** (~$0.01/phút nói): không có giọng dịch, phụ đề hiện theo từng câu, dùng ngữ cảnh cuộc họp khi dịch.
 - **Phụ đề song ngữ** trực tiếp trong cửa sổ điều khiển + **overlay** luôn-nổi, trong suốt, click-through (`Ctrl+Shift+O`); tự ngắt theo câu, cuộn xem lại được.
 - **Phát giọng dịch** tiếng Việt qua thiết bị tự chọn (`setSinkId`).
 - **Tự lưu transcript** mỗi phiên (cả 2 chiều) ra `Documents/LiveTranslate` — mặc định `.txt`, ghi liên tục nên không mất nội dung khi app tắt đột ngột.
 - **Tóm tắt cuộc họp** tự động khi dừng dịch: tóm tắt, quyết định, việc cần làm, câu hỏi còn mở → `…_tom-tat.md`.
-- **Lịch sử phiên** ngay trong app: xem lại song ngữ, tìm kiếm không dấu, tóm tắt lại, mở/xoá file.
+- **Lịch sử phiên** ngay trong app: xem lại song ngữ, tìm kiếm không dấu, tóm tắt lại, mở/xoá file, và **hỏi AI về một cuộc họp đã lưu** (câu trả lời trích từ transcript, kèm giờ).
 - **Ngữ cảnh & thuật ngữ cuộc họp** giúp dịch đúng tên riêng; **tô sáng + thông báo** khi có người nhắc tên bạn / từ khoá.
 - Xuất transcript thủ công `.txt` / `.srt` / `.md`.
-- VAD gate (chỉ stream khi có tiếng nói → ~$0.023/phút audio gửi) + đồng hồ chi phí theo phiên / ngày / tháng, **giới hạn chi phí tháng** tự dừng khi chạm trần.
+- VAD gate (chỉ stream khi có tiếng nói, im lặng không tốn tiền) + đồng hồ chi phí theo phiên / ngày / tháng, **giới hạn chi phí tháng** tự dừng khi chạm trần.
 - Thu nhỏ xuống **khay hệ thống**, phím tắt toàn cục `Ctrl+Alt+T` bật/tắt dịch.
 - Tự reconnect kèm `sessionResumption` khi server `GoAway` — không mất lịch sử phụ đề.
 
@@ -68,6 +71,17 @@ Cửa sổ chia 3 tab:
 ### 1. Chiều về cơ bản (nghe loa)
 Bắt đầu dịch là có phụ đề. Muốn nghe giọng Việt thì vào **Cài đặt → Chiều về**, bật **"Phát giọng dịch"** và chọn thiết bị **không có dấu ⚠** (tránh thu ngược).
 
+**Chỉ cần đọc, không cần nghe?** Chọn **🎚 Cách dịch → 📝 Chỉ chữ** trên thẻ Chiều về trước khi bấm Bắt đầu:
+
+| | 🔊 Giọng + chữ | 📝 Chỉ chữ |
+|---|---|---|
+| Chi phí | ~$0.037 / phút có người nói | ~$0.01 / phút có người nói |
+| Phụ đề | chạy theo từng từ, trễ ~2–3 giây | hiện theo từng câu, sau khi người nói ngừng ~1–2 giây (câu gốc hiện dần trong lúc chờ) |
+| Giọng dịch | có (nếu bật "Phát giọng dịch") | không |
+| Ngữ cảnh / thuật ngữ | gửi kèm, model có thể không nhận | luôn dùng khi dịch từng câu |
+
+> Tắt "Phát giọng dịch" ở chế độ **Giọng + chữ** chỉ làm im loa, **không giảm tiền**: model dịch Live luôn tạo giọng dịch và Google tính tiền phần đó. Chế độ **Chỉ chữ** dùng model chép lời `gemini-3.5-transcribe-live` rồi dịch từng câu bằng `gemini-flash-lite-latest`. Người nói liền một mạch không ngừng thì khoảng 15 giây có một đoạn.
+
 ### 2. Nghe cả meeting + giọng dịch qua tai nghe, im lặng tuyệt đối với người xung quanh
 Cần VB-Cable. **Cài đặt → Chiều về**:
 - 🎧 **Nghe meeting** → `CABLE Input (VB-Audio Virtual Cable)`
@@ -110,6 +124,12 @@ Phiên quá ngắn (dưới ~200 ký tự bản dịch) sẽ được bỏ qua. 
 - Chưa đặt tên thì khi tóm tắt, AI tự đặt một tên ngắn (hiện chữ nghiêng). Phiên tóm tắt từ trước bản 0.5.1 chưa có tên này: bấm **Tóm tắt lại** để có.
 - Ô tìm kiếm tìm được theo tên.
 
+**Hỏi về cuộc họp đã lưu:** mở một phiên trong tab Lịch sử rồi gõ câu hỏi vào ô **🤖 Hỏi về cuộc họp này**, ví dụ "Ai phụ trách việc test, hạn khi nào?" hay "Tôi đã hứa gì?".
+- AI đọc lại toàn bộ transcript của phiên (kèm lời bạn nói qua chiều đi cùng giờ, nhãn "Tôi") và bản tóm tắt nếu có. Câu trả lời kèm giờ, ví dụ "(lúc 15:53)". Không có trong transcript thì AI nói là không thấy.
+- Hoặc bấm một **câu hỏi nhanh**: 📋 Việc tôi cần làm · ✅ Đã chốt gì · 📅 Các mốc thời gian · ❓ Còn bỏ ngỏ.
+- Hỏi nối tiếp được. Câu mới nhất tự mở, các câu cũ tự thu gọn còn 1 dòng (bấm để mở lại). Các lượt hỏi đáp giữ riêng cho từng phiên tới khi tắt app.
+- Mỗi câu hỏi gửi lại cả transcript, nên ô hỏi hiện chi phí ước tính (họp 30 phút ≈ $0.03/câu). Chi phí được tính vào chi phí tháng.
+
 > Lịch sử được lưu ở `%APPDATA%\live-translate-companion\history` và chỉ ghi khi bật **Tự lưu**. Xoá một phiên sẽ xoá luôn file transcript và file tóm tắt của phiên đó.
 
 ### 6. Ngữ cảnh, thuật ngữ & từ khoá
@@ -122,7 +142,7 @@ Tab **Dịch** hiện chi phí ước tính **hôm nay / tháng này** (cộng c
 - Tới 80%: app báo trước.
 - Tới 100%: app tự dừng cả 2 chiều và không cho bắt đầu lại trong tháng (tăng giới hạn để tiếp tục).
 
-Chi phí tóm tắt (rất nhỏ) chưa được tính vào số này.
+Số này gồm cả chi phí tóm tắt, trợ lý cuộc họp và phần dịch từng câu của chế độ Chỉ chữ. Đây là ước tính theo bảng giá của Google, không phải hoá đơn.
 
 ### Phím tắt toàn cục
 | Phím | Tác dụng |
@@ -190,7 +210,8 @@ Vài phút sau, installer xuất hiện ở trang Releases. Lịch sử thay đ�
 src/
 ├─ main/             # Electron main: session manager, Gemini client, VAD, settings
 │  ├─ audio/         #   windows-default-device.ts — đổi thiết bị mặc định qua IPolicyConfig
-│  ├─ gemini/        #   client.ts (SDK) + raw-ws-client.ts (fallback) + session-manager.ts
+│  ├─ gemini/        #   client.ts (SDK) + raw-ws-client.ts (fallback) + transcribe-client.ts (chỉ chữ) + session-manager.ts + subtitle-sink.ts
+│  ├─ translate/     #   segment-translator.ts — dịch từng câu (chỉ chữ) bằng Flash-lite · translate-prompt.ts
 │  ├─ subtitles/     #   store.ts — ghép cặp transcript, export txt/srt/md · autosave.ts — tự lưu mỗi phiên
 │  ├─ history/       #   history-store.ts — lịch sử phiên (JSON trong userData)
 │  ├─ summary/       #   summarizer.ts (prompt + Gemini Flash) · summary-service.ts

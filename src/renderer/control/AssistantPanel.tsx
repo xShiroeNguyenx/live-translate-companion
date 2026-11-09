@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { ASSISTANT_MAX_QUESTION_CHARS } from '../../shared/constants'
 import { languageShort } from '../../shared/languages'
-import { countSpokenSegments, wallClock } from '../../shared/pause'
+import { countSpokenSegments } from '../../shared/pause'
+import { AskEntry, Entry, useCollapsible, useCopy } from './QaWidgets'
 import { useControlStore, type AssistantItem } from './store'
 
 // Trợ lý cuộc họp: hỏi về nội dung đã dịch + gợi ý câu trả lời cho điều vừa được hỏi
 export function AssistantPanel(): React.JSX.Element {
-  const api = window.controlApi
   const hasKey = useControlStore((s) => s.hasKey)
   const segments = useControlStore((s) => s.segments)
   const items = useControlStore((s) => s.assistantItems)
@@ -14,7 +14,8 @@ export function AssistantPanel(): React.JSX.Element {
   const suggestReplies = useControlStore((s) => s.suggestReplies)
   const clearAssistant = useControlStore((s) => s.clearAssistant)
   const [question, setQuestion] = useState('')
-  const [copied, setCopied] = useState<string | null>(null)
+  const { copied, copy } = useCopy()
+  const collapse = useCollapsible(items.map((i) => i.id))
 
   const hasTranscript = useMemo(() => countSpokenSegments(segments) > 0, [segments])
   const busy = items.some((i) => i.state === 'running')
@@ -31,24 +32,17 @@ export function AssistantPanel(): React.JSX.Element {
     void askAssistant(q)
   }
 
-  const copy = (key: string, text: string): void => {
-    void api?.copyText(text).then(() => {
-      setCopied(key)
-      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500)
-    })
-  }
-
   return (
-    <section className="card">
+    <section className="card qa">
       <div className="card-head">
         <h2>🤖 Trợ lý cuộc họp</h2>
+        {items.length > 1 && (
+          <button className="link-btn" onClick={() => collapse.setAll(!collapse.anyOpen)}>
+            {collapse.anyOpen ? 'Thu gọn tất cả' : 'Mở tất cả'}
+          </button>
+        )}
         {items.length > 0 && (
-          <button
-            className="link-btn"
-            style={{ marginLeft: 'auto' }}
-            onClick={clearAssistant}
-            disabled={busy}
-          >
+          <button className="link-btn" onClick={clearAssistant} disabled={busy}>
             Xoá
           </button>
         )}
@@ -66,11 +60,10 @@ export function AssistantPanel(): React.JSX.Element {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit()
           }}
         />
-        <button className="small" onClick={submit} disabled={!!blocked || busy || !question.trim()}>
+        <button className="btn-ask" onClick={submit} disabled={!!blocked || busy || !question.trim()}>
           Hỏi
         </button>
         <button
-          className="small"
           onClick={() => void suggestReplies()}
           disabled={!!blocked || busy}
           title="Soạn 3 câu trả lời cho điều người khác vừa hỏi (dựa vào khoảng 3 phút gần nhất)"
@@ -81,48 +74,67 @@ export function AssistantPanel(): React.JSX.Element {
       {blocked && <p className="hint">{blocked}</p>}
       {items.length > 0 && (
         <div className="assistant-list">
-          {items.map((item) => (
-            <AssistantEntry key={item.id} item={item} copied={copied} onCopy={copy} />
-          ))}
+          {items.map((item, idx) => {
+            const open = collapse.isOpen(item.id, idx)
+            const onToggle = (): void => collapse.toggle(item.id, idx)
+            return item.kind === 'ask' ? (
+              <AskEntry
+                key={item.id}
+                item={item}
+                open={open}
+                onToggle={onToggle}
+                copied={copied === `ask-${item.id}`}
+                onCopy={(text) => copy(`ask-${item.id}`, text)}
+              />
+            ) : (
+              <ReplyEntry
+                key={item.id}
+                item={item}
+                open={open}
+                onToggle={onToggle}
+                copied={copied}
+                onCopy={copy}
+              />
+            )
+          })}
         </div>
       )}
     </section>
   )
 }
 
-function AssistantEntry({
+function ReplyEntry({
   item,
+  open,
+  onToggle,
   copied,
   onCopy
 }: {
-  item: AssistantItem
+  item: Extract<AssistantItem, { kind: 'reply' }>
+  open: boolean
+  onToggle(): void
   copied: string | null
   onCopy: (key: string, text: string) => void
 }): React.JSX.Element {
-  const time = <span className="assistant-time">{wallClock(item.at)}</span>
-
-  if (item.kind === 'ask') {
-    return (
-      <div className="assistant-item">
-        <div className="assistant-q">
-          <span>❓ {item.question}</span>
-          {time}
-        </div>
-        {item.state === 'running' && <p className="hint">⏳ Đang tìm trong transcript…</p>}
-        {item.state === 'done' && <p className="assistant-answer">{item.answer}</p>}
-        {item.state === 'error' && <p className="assistant-error">⚠ {item.error}</p>}
-      </div>
-    )
-  }
-
   const result = item.result
   const replyLang = result?.replyLanguage ? languageShort(result.replyLanguage) : ''
+  const preview =
+    item.state === 'running'
+      ? '⏳ Đang soạn câu trả lời…'
+      : item.state === 'error'
+        ? `⚠ ${item.error ?? 'Lỗi'}`
+        : result?.asked
+          ? `Họ đang hỏi: ${result.asked}`
+          : (result?.suggestions?.[0]?.text ?? '')
   return (
-    <div className="assistant-item">
-      <div className="assistant-q">
-        <span>💬 Gợi ý trả lời</span>
-        {time}
-      </div>
+    <Entry
+      icon="💬"
+      title="Gợi ý trả lời"
+      at={item.at}
+      open={open}
+      onToggle={onToggle}
+      preview={preview}
+    >
       {item.state === 'running' && <p className="hint">⏳ Đang soạn câu trả lời…</p>}
       {item.state === 'error' && <p className="assistant-error">⚠ {item.error}</p>}
       {item.state === 'done' && result && (
@@ -150,6 +162,6 @@ function AssistantEntry({
           })}
         </>
       )}
-    </div>
+    </Entry>
   )
 }

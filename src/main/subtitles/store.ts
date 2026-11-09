@@ -44,6 +44,9 @@ function formatSrtTime(ms: number): string {
 export class SubtitleStore {
   private segments: SubtitleSegment[] = []
   private openSegment: SubtitleSegment | null = null
+  // Chế độ chỉ chữ: câu gốc đang nói dở (interim của model chép lời), mỗi lần cập nhật là thay
+  // hẳn. Tách khỏi openSegment để finalize/mốc tạm dừng không chốt nhầm nó thành câu.
+  private interim: SubtitleSegment | null = null
   private lastFragmentAt = 0
   private counter = 0
   private readonly gapMs: number
@@ -131,21 +134,83 @@ export class SubtitleStore {
     this.emit({ type: 'segment', segment: clone(marker) })
   }
 
+  // ── Chế độ chỉ chữ: câu gốc về trước, bản dịch điền vào sau theo id ──
+
+  setInterim(text: string): void {
+    if (!text.trim()) return
+    if (!this.interim) {
+      this.interim = {
+        id: `seg-${++this.counter}`,
+        startedAt: this.now(),
+        source: { text: '', final: false },
+        target: { text: '', final: false }
+      }
+    }
+    this.interim.source.text = text
+    this.emit({ type: 'segment', segment: clone(this.interim) })
+  }
+
+  // Chốt câu gốc (bản final của model chép lời) thành segment chờ dịch. Dùng lại id của interim
+  // để giao diện thay đúng dòng đang hiện. Trả về id để điền bản dịch sau; câu rỗng → null.
+  commitSource(text: string): string | null {
+    const interim = this.interim
+    this.interim = null
+    if (!text.trim()) {
+      // bỏ interim (nếu có) khỏi giao diện: phát lại dưới dạng history
+      if (interim) this.emit({ type: 'history', segments: this.history() })
+      return null
+    }
+    const seg: SubtitleSegment = interim ?? {
+      id: `seg-${++this.counter}`,
+      startedAt: this.now(),
+      source: { text: '', final: false },
+      target: { text: '', final: false }
+    }
+    seg.source = { text: text.trim(), final: true }
+    seg.target = { text: '', final: false }
+    this.segments.push(seg)
+    this.emit({ type: 'segment', segment: clone(seg) })
+    return seg.id
+  }
+
+  // Chốt interim đang dở (Dừng giữa câu, không còn bản final nào về nữa)
+  commitInterim(): { id: string; text: string } | null {
+    const text = this.interim?.source.text ?? ''
+    if (!this.interim) return null
+    const id = this.commitSource(text)
+    return id ? { id, text: text.trim() } : null
+  }
+
+  hasInterim(): boolean {
+    return this.interim !== null
+  }
+
+  // id lạ (phiên trước đã clear) → bỏ qua
+  fillTarget(id: string, text: string): boolean {
+    const seg = this.segments.find((s) => s.id === id)
+    if (!seg) return false
+    seg.target = { text: text.trim(), final: true }
+    this.emit({ type: 'segment', segment: clone(seg) })
+    return true
+  }
+
   history(): SubtitleSegment[] {
     const all = this.segments.map(clone)
     if (this.openSegment) all.push(clone(this.openSegment))
+    if (this.interim) all.push(clone(this.interim))
     return all
   }
 
   clear(): void {
     this.segments = []
     this.openSegment = null
+    this.interim = null
     this.lastFragmentAt = 0
     this.emit({ type: 'clear' })
   }
 
   isEmpty(): boolean {
-    return this.segments.length === 0 && this.openSegment === null
+    return this.segments.length === 0 && this.openSegment === null && this.interim === null
   }
 
   export(format: ExportFormat): string {

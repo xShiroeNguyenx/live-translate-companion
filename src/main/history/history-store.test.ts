@@ -43,6 +43,26 @@ describe('HistoryStore', () => {
     expect(r?.segments[0].target.text).toBe('Xin chào mọi người')
   })
 
+  it('overlappingOutgoing: chỉ phiên chiều đi chồng thời gian với phiên đã cho', () => {
+    const h = new HistoryStore(join(dir, 'history'))
+    const meeting = record('meeting', 100_000, 'Họp') // 100s → 160s
+    const out = (id: string, startedAt: number): HistoryRecord => ({
+      ...record(id, startedAt, 'Tôi nói'),
+      direction: 'outgoing'
+    })
+    h.upsert(meeting)
+    h.upsert(out('during', 120_000))
+    h.upsert(out('overlap-start', 60_000)) // 60s → 120s, chồng phần đầu
+    h.upsert(out('before', 1_000)) // 1s → 61s
+    h.upsert(record('other-incoming', 130_000, 'Phiên khác'))
+    expect(
+      h
+        .overlappingOutgoing(meeting)
+        .map((r) => r.id)
+        .sort()
+    ).toEqual(['during', 'overlap-start'])
+  })
+
   it('upsert một phần cho id chưa có thì bỏ qua', () => {
     const h = new HistoryStore(join(dir, 'history'))
     expect(h.upsert({ id: 'x', summary: 'abc' })).toBeNull()

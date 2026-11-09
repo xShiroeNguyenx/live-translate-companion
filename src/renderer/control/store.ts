@@ -42,7 +42,21 @@ export type AssistantItem =
       error?: string
     }
 
+export type AskItem = Extract<AssistantItem, { kind: 'ask' }>
+
 let assistantSeq = 0
+
+// vài lượt hỏi đáp gần nhất đã có câu trả lời (danh sách mới → cũ), trả về cũ → mới
+function previousTurns(items: AssistantItem[]): QaTurn[] {
+  return items
+    .flatMap((i) =>
+      i.kind === 'ask' && i.state === 'done' && i.answer
+        ? [{ question: i.question, answer: i.answer }]
+        : []
+    )
+    .slice(0, ASSISTANT_PREVIOUS_TURNS)
+    .reverse()
+}
 
 const EMPTY_METRICS: Metrics = {
   rmsDb: -100,
@@ -93,6 +107,10 @@ interface ControlState {
   askAssistant(question: string): Promise<void>
   suggestReplies(): Promise<void>
   clearAssistant(): void
+  // hỏi về phiên đã lưu (tab Lịch sử) — theo id phiên, giữ trong bộ nhớ tới khi tắt app
+  historyQa: Record<string, AskItem[]>
+  askHistory(id: string, question: string): Promise<void>
+  clearHistoryQa(id: string): void
   init(): void
   setHasKey(v: boolean): void
   patchSettings(patch: Partial<AppSettings>): Promise<void>
@@ -146,6 +164,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
   summaries: {},
   lastSummary: null,
   assistantItems: [],
+  historyQa: {},
   meetingTitle: '',
 
   init: () => {
@@ -199,14 +218,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
   askAssistant: async (question) => {
     if (!api) return
     // vài lượt hỏi đáp gần nhất (cũ → mới) để hỏi nối tiếp được
-    const previous: QaTurn[] = get()
-      .assistantItems.flatMap((i) =>
-        i.kind === 'ask' && i.state === 'done' && i.answer
-          ? [{ question: i.question, answer: i.answer }]
-          : []
-      )
-      .slice(0, ASSISTANT_PREVIOUS_TURNS)
-      .reverse()
+    const previous = previousTurns(get().assistantItems)
     const id = ++assistantSeq
     addAssistantItem(set, { id, kind: 'ask', at: Date.now(), question, state: 'running' })
     try {
@@ -238,6 +250,44 @@ export const useControlStore = create<ControlState>((set, get) => ({
   },
 
   clearAssistant: () => set({ assistantItems: [] }),
+
+  askHistory: async (sessionId, question) => {
+    if (!api) return
+    const previous = previousTurns(get().historyQa[sessionId] ?? [])
+    const id = ++assistantSeq
+    const item: AskItem = { id, kind: 'ask', at: Date.now(), question, state: 'running' }
+    set((s) => ({
+      historyQa: {
+        ...s.historyQa,
+        [sessionId]: [item, ...(s.historyQa[sessionId] ?? [])].slice(0, MAX_ASSISTANT_ITEMS)
+      }
+    }))
+    // mục đã bị xoá (bấm Xoá / xoá phiên) trong lúc chờ → map không còn id → bỏ kết quả
+    const patch = (p: Partial<AskItem>): void =>
+      set((s) => {
+        const list = s.historyQa[sessionId]
+        if (!list) return {}
+        return {
+          historyQa: {
+            ...s.historyQa,
+            [sessionId]: list.map((i) => (i.id === id ? { ...i, ...p } : i))
+          }
+        }
+      })
+    try {
+      const r = await api.askHistory(sessionId, question, previous)
+      patch(r.ok ? { state: 'done', answer: r.answer } : { state: 'error', error: r.error })
+    } catch (err) {
+      patch({ state: 'error', error: String(err) })
+    }
+  },
+
+  clearHistoryQa: (sessionId) =>
+    set((s) => {
+      const next = { ...s.historyQa }
+      delete next[sessionId]
+      return { historyQa: next }
+    }),
 
   setMeetingTitle: async (title) => {
     if (!api) return

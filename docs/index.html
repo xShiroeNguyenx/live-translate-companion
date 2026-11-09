@@ -397,15 +397,16 @@ footer { border-top: 1px solid var(--line); padding-block: var(--s-4); color: va
     <h2>Chỉ trả cho những phút có người nói</h2>
     <div class="cost">
       <div>
-        <p class="price">$0.023<small>/ phút audio gửi đi</small></p>
-        <p class="intro">App chỉ gửi âm thanh lên Gemini khi có tiếng nói, im lặng thì không tính tiền. Bạn xem được chi phí hôm nay và tháng này ngay trong app, và có thể đặt giới hạn tháng: tới 80% app báo trước, tới 100% app tự dừng.</p>
+        <p class="price">$0.037<small>/ phút có người nói</small></p>
+        <p class="intro">App chỉ gửi âm thanh lên Gemini khi có tiếng nói, im lặng thì không tính tiền. Chỉ cần đọc phụ đề, không cần nghe giọng dịch? Chọn chế độ <strong>Chỉ chữ</strong>, khoảng $0.01 mỗi phút. Bạn xem được chi phí hôm nay và tháng này ngay trong app, và có thể đặt giới hạn tháng: tới 80% app báo trước, tới 100% app tự dừng.</p>
       </div>
       <form class="calc" id="calc" aria-label="Ước tính chi phí một cuộc họp">
         <label for="mins"><span>Thời lượng họp</span><output id="mins-out" for="mins">60 phút</output></label>
         <input type="range" id="mins" min="15" max="180" step="15" value="60">
         <label for="talk"><span>Thời gian có người nói</span><output id="talk-out" for="talk">60%</output></label>
         <input type="range" id="talk" min="20" max="100" step="5" value="60">
-        <div class="total"><span>Ước tính mỗi cuộc họp</span><strong id="total">$0.83</strong></div>
+        <div class="total"><span>Ước tính mỗi cuộc họp</span><strong id="total">$1.32</strong></div>
+        <div class="total"><span>Chế độ Chỉ chữ</span><strong id="total-text">$0.36</strong></div>
         <p class="fine" style="margin:0">Tính cho chiều về. Bật thêm chiều đi thì cộng phần bạn nói.</p>
       </form>
     </div>
@@ -469,7 +470,7 @@ footer { border-top: 1px solid var(--line); padding-block: var(--s-4); color: va
 
 <div class="wrap">
   <footer>
-    <span>Live Translate Companion · phiên bản 0.4.0 · MIT © 2026 NguyenKhanh</span>
+    <span>Live Translate Companion · phiên bản 0.5.2 · MIT © 2026 NguyenKhanh</span>
     <span>Dùng Gemini 3.5 Live Translate (<span class="mono">gemini-3.5-live-translate-preview</span>)</span>
   </footer>
 </div>
@@ -477,14 +478,19 @@ footer { border-top: 1px solid var(--line); padding-block: var(--s-4); color: va
 <script>
 (function () {
   // ── Ước tính chi phí ──
-  var PRICE = 0.023;
+  // USD / phút có người nói: dịch có giọng / chỉ chữ (chép lời + dịch từng câu)
+  var PRICE = 0.0368;
+  var PRICE_TEXT = 0.01;
   var mins = document.getElementById('mins');
   var talk = document.getElementById('talk');
   var total = document.getElementById('total');
+  var totalText = document.getElementById('total-text');
   function calc() {
     document.getElementById('mins-out').textContent = mins.value + ' phút';
     document.getElementById('talk-out').textContent = talk.value + '%';
-    total.textContent = '$' + (mins.value * talk.value / 100 * PRICE).toFixed(2);
+    var talking = mins.value * talk.value / 100;
+    total.textContent = '$' + (talking * PRICE).toFixed(2);
+    totalText.textContent = '$' + (talking * PRICE_TEXT).toFixed(2);
   }
   mins.addEventListener('input', calc);
   talk.addEventListener('input', calc);

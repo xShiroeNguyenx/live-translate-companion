@@ -1,6 +1,7 @@
 import type { SubtitleSegment } from '../../shared/types'
 import { findKeyword } from '../../shared/keywords'
 import { isPauseMarker, pauseLabel } from '../../shared/pause'
+import { AWAITING_TRANSLATION_LABEL, isAwaitingTranslation } from '../../shared/segments'
 import { dbToMeterPercent, useStickToBottom } from './ui-helpers'
 
 // Thanh đo mức âm thanh + vạch ngưỡng VAD
@@ -80,6 +81,7 @@ export function SegmentList({
         >
           {seg.source.text && <p className="src">{seg.source.text}</p>}
           {seg.target.text && <p className="tgt">{seg.target.text}</p>}
+          {isAwaitingTranslation(seg) && <p className="tgt pending">{AWAITING_TRANSLATION_LABEL}</p>}
         </div>
         )
       )}

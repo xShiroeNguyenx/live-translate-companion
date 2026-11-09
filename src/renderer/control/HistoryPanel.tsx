@@ -3,6 +3,7 @@ import { languageShort } from '../../shared/languages'
 import { MAX_TITLE_CHARS, meetingTitleOf, splitSummaryTitle } from '../../shared/meeting-title'
 import { countSpokenSegments } from '../../shared/pause'
 import type { HistoryEntry, HistoryRecord } from '../../shared/types'
+import { HistoryQaPanel } from './HistoryQaPanel'
 import { useControlStore } from './store'
 import { formatDuration, useDraft } from './ui-helpers'
 import { SegmentList } from './widgets'
@@ -26,6 +27,7 @@ export function HistoryPanel({
 }): React.JSX.Element {
   const api = window.controlApi
   const summaries = useControlStore((s) => s.summaries)
+  const clearHistoryQa = useControlStore((s) => s.clearHistoryQa)
   const [query, setQuery] = useState('')
   const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [record, setRecord] = useState<HistoryRecord | null>(null)
@@ -83,6 +85,7 @@ export function HistoryPanel({
     const remove = async (): Promise<void> => {
       if (!window.confirm('Xoá phiên này cùng file transcript/tóm tắt đã lưu?')) return
       await api.deleteHistory(record.id)
+      clearHistoryQa(record.id)
       onSelect(null)
       reload()
     }
@@ -157,6 +160,8 @@ export function HistoryPanel({
           </div>
           {error && <div className="alert error">{error}</div>}
         </section>
+
+        <HistoryQaPanel record={record} />
 
         {record.summary && (
           <section className="card">

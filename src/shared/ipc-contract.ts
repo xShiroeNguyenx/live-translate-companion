@@ -56,6 +56,7 @@ export const IPC = {
   historySummarizeCurrent: 'history:summarizeCurrent',
   historyOpenFile: 'history:openFile',
   historyRename: 'history:rename',
+  historyAsk: 'history:ask',
   meetingGetTitle: 'meeting:getTitle',
   meetingSetTitle: 'meeting:setTitle',
   usageGet: 'usage:get',
@@ -151,6 +152,8 @@ export interface ControlApi {
   listLiveModels(): Promise<ListLiveModelsResult>
   // trợ lý cuộc họp, dựa trên transcript chiều về đang có (previous: các lượt hỏi đáp trước, cũ → mới)
   askAssistant(question: string, previous: QaTurn[]): Promise<AssistantAskResult>
+  // hỏi về 1 phiên đã lưu (tab Lịch sử)
+  askHistory(id: string, question: string, previous: QaTurn[]): Promise<AssistantAskResult>
   suggestReplies(): Promise<AssistantReplyResult>
   // ghi clipboard qua main (renderer bị chặn quyền clipboard)
   copyText(text: string): Promise<void>

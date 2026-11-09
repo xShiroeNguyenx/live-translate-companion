@@ -77,6 +77,13 @@ export class HistoryStore extends EventEmitter {
     return records.sort((a, b) => b.startedAt - a.startedAt)
   }
 
+  // các phiên chiều đi chạy chồng thời gian với 1 phiên chiều về — lời của "Tôi" trong cuộc họp đó
+  overlappingOutgoing(rec: Pick<HistoryRecord, 'startedAt' | 'endedAt'>): HistoryRecord[] {
+    return this.all().filter(
+      (r) => r.direction === 'outgoing' && r.startedAt <= rec.endedAt && r.endedAt >= rec.startedAt
+    )
+  }
+
   list(query = ''): HistoryEntry[] {
     const needle = normalizeForMatch(query.trim())
     const records = this.all()

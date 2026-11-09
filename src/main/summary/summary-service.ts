@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { splitSummaryTitle } from '../../shared/meeting-title'
-import type { AppSettings, HistoryRecord, SummaryStatus } from '../../shared/types'
+import type { AppSettings, SummaryStatus } from '../../shared/types'
 import { flashCostUsd } from '../gemini/flash'
 import type { HistoryStore } from '../history/history-store'
 import { buildSummaryPrompt, generateSummary } from './summarizer'
@@ -32,14 +32,6 @@ export class SummaryService extends EventEmitter {
     return this.running.has(id)
   }
 
-  private overlappingOutgoing(rec: HistoryRecord): HistoryRecord[] {
-    return this.deps.history
-      .all()
-      .filter(
-        (r) => r.direction === 'outgoing' && r.startedAt <= rec.endedAt && r.endedAt >= rec.startedAt
-      )
-  }
-
   // queueIfRunning: dùng cho tóm tắt cuối phiên — nếu bản "tóm tắt đến giờ" còn đang chạy thì
   // xếp hàng chạy lại sau đó (với transcript đầy đủ) thay vì bỏ qua
   async summarize(
@@ -62,7 +54,7 @@ export class SummaryService extends EventEmitter {
     const prompt = buildSummaryPrompt({
       incoming: rec,
       // tóm tắt phiên chiều đi thì chỉ dùng chính nó
-      outgoing: rec.direction === 'incoming' ? this.overlappingOutgoing(rec) : [],
+      outgoing: rec.direction === 'incoming' ? this.deps.history.overlappingOutgoing(rec) : [],
       meetingContext: s.meetingContext,
       language: s.targetLanguage
     })

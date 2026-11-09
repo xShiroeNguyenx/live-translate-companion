@@ -269,10 +269,18 @@ export function SettingsPanel({
           </select>
         </div>
         <div className="row wrap">
-          <label className="checkbox">
+          <label
+            className="checkbox"
+            title={
+              settings.incomingMode === 'text'
+                ? 'Chế độ “Chỉ chữ” (tab Dịch) không có giọng dịch'
+                : undefined
+            }
+          >
             <input
               type="checkbox"
               checked={settings.playbackEnabled}
+              disabled={settings.incomingMode === 'text'}
               onChange={(e) => void patchSettings({ playbackEnabled: e.target.checked })}
             />
             Phát giọng dịch
@@ -292,6 +300,11 @@ export function SettingsPanel({
           value={settings.vadThresholdDb}
           onChange={(db) => void patchSettings({ vadThresholdDb: db })}
         />
+        {settings.incomingMode === 'text' && (
+          <p className="hint">
+            📝 Đang chọn “Chỉ chữ” ở tab Dịch: chiều về không có giọng dịch, chỉ có phụ đề.
+          </p>
+        )}
         {settings.monitorEnabled && sinkCaptured && (
           <p className="hint">⚠ Monitor đang tạm tắt: thiết bị giọng dịch trùng với thiết bị bị thu.</p>
         )}

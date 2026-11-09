@@ -4,7 +4,35 @@ export const FRAME_MS = 100
 export const SAMPLES_PER_FRAME = (INPUT_SAMPLE_RATE * FRAME_MS) / 1000
 export const BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2
 
-export const PRICE_USD_PER_MINUTE = 0.023
+// Model dịch Live (gemini-3.5-live-translate-preview): $0.0053/phút audio vào + $0.0315/phút audio ra,
+// tính theo 25 token/giây cho CẢ vào lẫn ra — theo ai.google.dev/gemini-api/docs/pricing (tra 2026-11-09).
+// Đã đối chiếu usageMetadata thật: 34s audio → 850 token vào + 850 token ra. Áp cho cả 2 chiều.
+export const PRICE_USD_PER_MINUTE = 0.0368
+
+// ── Chế độ "Chỉ chữ" (chiều về): chép lời bằng Live rồi dịch từng câu bằng Flash-lite ──
+// Model dịch Live luôn sinh (và tính tiền) audio dù yêu cầu TEXT, nên chế độ chỉ chữ dùng model khác.
+export const TRANSCRIBE_LIVE_MODEL = 'gemini-3.5-transcribe-live'
+// $3.50/1M token audio vào (~$0.005/phút) + chữ ra ~175 token/phút (~$0.004/phút), theo bảng giá
+export const TRANSCRIBE_PRICE_USD_PER_MINUTE = 0.009
+// phiên transcribe tối đa 10 phút: xoay sớm lúc im lặng, quá mốc này thì xoay bắt buộc
+export const TRANSCRIBE_ROTATE_WHEN_QUIET_MS = 8 * 60 * 1000
+export const TRANSCRIBE_MAX_SESSION_MS = 9 * 60 * 1000 + 30 * 1000
+// Flash-lite: không "suy nghĩ" mặc định → ~0.7s/câu (Flash thường mất 4–6s vì thinking)
+export const TEXT_TRANSLATE_MODEL = 'gemini-flash-lite-latest'
+// USD / 1 triệu token — lấy mức CAO nhất trong các bản Flash-lite (3.5-flash-lite) để không ước tính thấp
+export const TEXT_TRANSLATE_PRICE_USD_PER_M_INPUT = 0.3
+export const TEXT_TRANSLATE_PRICE_USD_PER_M_OUTPUT = 2.5
+// số câu gốc trước đó gửi kèm làm ngữ cảnh khi dịch 1 câu
+// Ước tính để hiện cho người dùng: chép lời + Flash-lite dịch (~8 câu/phút × ~130 token ≈ $0.001)
+export const TEXT_MODE_EST_USD_PER_MINUTE = TRANSCRIBE_PRICE_USD_PER_MINUTE + 0.001
+export const TEXT_TRANSLATE_CONTEXT_SEGMENTS = 3
+export const TEXT_TRANSLATE_CONCURRENCY = 3
+export const TEXT_TRANSLATE_TIMEOUT_MS = 15_000
+// lỗi dịch liên tiếp tới mức này → báo lên thẻ Chiều về (sai key, hết quota…)
+export const TEXT_TRANSLATE_ERROR_STREAK = 3
+export const TEXT_TRANSLATE_FAILED_MARK = '⚠ Không dịch được câu này'
+// Dừng phiên chỉ chữ: chờ câu cuối dịch xong tối đa chừng này rồi mới tự tóm tắt
+export const TEXT_TRANSLATE_SETTLE_MS = 8000
 
 export const VAD_DEFAULT_THRESHOLD_DB = -50
 export const VAD_OPEN_FRAMES = 2
@@ -46,6 +74,9 @@ export const ASSISTANT_RECENT_MIN_LINES = 6
 export const ASSISTANT_MAX_QUESTION_CHARS = 500
 // số lượt hỏi đáp trước gửi kèm để hỏi nối tiếp ("còn phương án 2 thì sao?")
 export const ASSISTANT_PREVIOUS_TURNS = 3
+// Hỏi về phiên đã lưu (tab Lịch sử): câu hỏi có thể về bất kỳ đoạn nào nên gửi cả transcript —
+// ~100–160k token, đủ cho cuộc họp vài giờ. Họp 30 phút ≈ 40k ký tự ≈ $0.03/câu hỏi (shared/cost.ts).
+export const HISTORY_ASK_MAX_TRANSCRIPT_CHARS = 400_000
 
 // Chiều đi (nói tiếng Việt → giọng đích vào meeting)
 export const OUTGOING_DEFAULT_TARGET = 'ja'
