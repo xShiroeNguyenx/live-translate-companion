@@ -53,13 +53,21 @@ export function SegmentList({
   segments,
   placeholder,
   className = '',
-  keywords = []
+  keywords = [],
+  onReplay,
+  replayDisabled = false,
+  onDelete
 }: {
   segments: SubtitleSegment[]
   placeholder: string
   className?: string
   // đã chuẩn hoá bằng parseKeywords — segment chứa từ khoá được tô sáng
   keywords?: string[]
+  // có = mỗi câu đã chốt có nút phát lại (chiều đi: đọc lại bản dịch vào meeting)
+  onReplay?: (segment: SubtitleSegment) => void
+  replayDisabled?: boolean
+  // có = mỗi câu đã chốt có nút xoá khỏi transcript
+  onDelete?: (segment: SubtitleSegment) => void
 }): React.JSX.Element {
   const list = useStickToBottom(segments)
   return (
@@ -81,6 +89,29 @@ export function SegmentList({
         >
           {seg.source.text && <p className="src">{seg.source.text}</p>}
           {seg.target.text && <p className="tgt">{seg.target.text}</p>}
+          {(onReplay || onDelete) && seg.target.final && (
+            <div className="seg-actions">
+              {onReplay && seg.target.text.trim() && (
+                <button
+                  className="link-btn"
+                  disabled={replayDisabled}
+                  onClick={() => onReplay(seg)}
+                  title="Phát lại câu này vào meeting. Câu vừa phát trong lần mở app này thì không tốn thêm tiền."
+                >
+                  🔁 Phát lại
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  className="link-btn seg-delete"
+                  onClick={() => onDelete(seg)}
+                  title="Xoá câu này khỏi transcript chiều đi (cả file tự lưu và lịch sử)"
+                >
+                  ✕ Xoá
+                </button>
+              )}
+            </div>
+          )}
           {isAwaitingTranslation(seg) && <p className="tgt pending">{AWAITING_TRANSLATION_LABEL}</p>}
         </div>
         )

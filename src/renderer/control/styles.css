@@ -441,6 +441,16 @@ input[type='range'] {
   padding-left: 8px;
 }
 
+.segment .seg-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.segment .seg-delete {
+  color: #fca5a5;
+}
+
 .segment.partial {
   border-left-color: #f59e0b;
   opacity: 0.85;

@@ -48,9 +48,11 @@ const api: ControlApi = {
   setPushToTalk: (active: boolean) => ipcRenderer.invoke('outgoing:ptt', active),
   pauseOutgoing: () => ipcRenderer.invoke('outgoing:pause'),
   resumeOutgoing: () => ipcRenderer.invoke('outgoing:resume'),
+  removeOutgoingSegment: (id: string) => ipcRenderer.invoke('outgoing:removeSegment', id),
   translateTyped: (text: string) => ipcRenderer.invoke('typed:translate', text),
   prepareTyped: (text: string) => ipcRenderer.invoke('typed:prepare', text),
-  speakTyped: (text: string, source: string) => ipcRenderer.invoke('typed:speak', text, source),
+  speakTyped: (text: string, source: string, replay?: boolean) =>
+    ipcRenderer.invoke('typed:speak', text, source, replay === true),
   stopTyped: () => ipcRenderer.invoke('typed:stop'),
   getTypedState: () => ipcRenderer.invoke('typed:getState'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),

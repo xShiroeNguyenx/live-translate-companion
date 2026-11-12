@@ -97,6 +97,8 @@ export const TTS_EST_USD_PER_MINUTE =
   (TTS_PRICE_USD_PER_M_OUTPUT * TTS_AUDIO_TOKENS_PER_SECOND * 60) / 1_000_000
 export const TTS_TIMEOUT_MS = 45_000
 export const TYPED_SPEECH_MAX_CHARS = 600
+// số câu gần nhất giữ sẵn giọng trong bộ nhớ để phát lại không tốn tiền (~0,3 MB mỗi câu 6 giây)
+export const TYPED_SPEECH_CACHE_SENTENCES = 30
 // đệm sau khi audio hết, trước khi nhả player CABLE (bù độ trễ lịch phát + endpoint)
 export const TYPED_SPEECH_TAIL_MS = 400
 // giọng dựng sẵn của Gemini TTS (một phần nhỏ trong 30 giọng), tự nhận ngôn ngữ theo chữ

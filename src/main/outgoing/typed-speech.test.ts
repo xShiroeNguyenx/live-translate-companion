@@ -308,6 +308,31 @@ describe('TypedSpeechService.speak', () => {
     expect(synthesize).toHaveBeenCalledTimes(2)
   })
 
+  it('phát lại câu cũ (replay): dùng giọng đã giữ, không tốn tiền, không ghi thêm dòng transcript', async () => {
+    const { svc, deps, synthesize } = setup()
+    await svc.speak('一つ目。', 'Câu một')
+    vi.advanceTimersByTime(2000)
+    await svc.speak('二つ目。', 'Câu hai')
+    vi.advanceTimersByTime(2000)
+    expect((await svc.speak('一つ目。', 'Câu một', true)).ok).toBe(true)
+    expect(synthesize).toHaveBeenCalledTimes(2)
+    expect(deps.onCost).toHaveBeenCalledTimes(2)
+    expect(deps.play).toHaveBeenCalledTimes(3)
+    expect(deps.onSpoken).toHaveBeenCalledTimes(2)
+  })
+
+  it('chỉ giữ giọng của 30 câu gần nhất: câu cũ hơn phát lại thì tạo giọng mới', async () => {
+    const { svc, synthesize } = setup()
+    for (let i = 0; i <= 30; i++) await svc.prepare(`文${i}。`)
+    expect(synthesize).toHaveBeenCalledTimes(31)
+    await svc.prepare('文30。')
+    await svc.prepare('文1。')
+    expect(synthesize).toHaveBeenCalledTimes(31)
+    // 文0 đã bị đẩy ra
+    await svc.prepare('文0。')
+    expect(synthesize).toHaveBeenCalledTimes(32)
+  })
+
   it('phát xong thì phát được câu tiếp theo', async () => {
     const { svc, deps } = setup()
     await svc.speak('一つ目。', '')

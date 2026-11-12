@@ -107,7 +107,7 @@ Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ 
 - Không cần bấm **Bật chiều đi**; chỉ cần đã chọn thiết bị **📤 Phát vào**.
 - App chuẩn bị giọng sẵn ngay sau khi dịch nên bấm Phát là ra tiếng liền. Sửa bản dịch thì lần Phát đó chờ thêm vài giây.
 - Chọn giọng ở **Cài đặt → Chiều đi → 🗣 Giọng đọc**. Chi phí khoảng $0.03 cho mỗi phút giọng (`gemini-3.8-flash-tts`), tính vào chi phí tháng.
-- Câu đã phát được ghi vào transcript chiều đi như lời nói qua micro.
+- Câu đã phát được ghi vào transcript chiều đi như lời nói qua micro. Mỗi câu có nút **🔁 Phát lại**: 30 câu gần nhất phát lại không tốn thêm tiền (tới khi tắt app hoặc đổi giọng).
 
 ### 4. Tự lưu transcript
 Bật sẵn mặc định. Mỗi lần **Bắt đầu dịch** / **Bật chiều đi** tạo 1 file mới đặt tên theo giờ bắt đầu:

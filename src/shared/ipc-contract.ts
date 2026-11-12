@@ -46,6 +46,7 @@ export const IPC = {
   outgoingPtt: 'outgoing:ptt',
   outgoingPause: 'outgoing:pause',
   outgoingResume: 'outgoing:resume',
+  outgoingRemoveSegment: 'outgoing:removeSegment',
   typedTranslate: 'typed:translate',
   typedPrepare: 'typed:prepare',
   typedSpeak: 'typed:speak',
@@ -137,12 +138,15 @@ export interface ControlApi {
   setPushToTalk(active: boolean): Promise<void>
   pauseOutgoing(): Promise<void>
   resumeOutgoing(): Promise<{ ok: boolean; error?: string }>
+  // xoá 1 câu khỏi transcript chiều đi (cả file tự lưu và lịch sử); false = không có câu này
+  removeOutgoingSegment(id: string): Promise<boolean>
   // "Gõ để nói": dịch câu gõ sang ngôn ngữ đích chiều đi (chưa phát)
   translateTyped(text: string): Promise<TypedTranslateResult>
   // tạo sẵn giọng cho `text` (chưa phát) để lúc bấm Phát ra tiếng ngay
   prepareTyped(text: string): Promise<TypedSpeakResult>
   // đọc `text` thành giọng vào thiết bị "Phát vào"; trả về khi bắt đầu phát (source = câu gốc đã gõ)
-  speakTyped(text: string, source: string): Promise<TypedSpeakResult>
+  // replay = phát lại câu đã có trong transcript (không ghi thêm dòng)
+  speakTyped(text: string, source: string, replay?: boolean): Promise<TypedSpeakResult>
   stopTyped(): Promise<void>
   getTypedState(): Promise<TypedSpeechState>
   getAppVersion(): Promise<string>

@@ -194,6 +194,15 @@ export class SubtitleStore {
     return true
   }
 
+  // Xoá 1 câu đã chốt (người dùng bấm Xoá ở danh sách chiều đi). Câu đang nói dở thì không xoá.
+  remove(id: string): boolean {
+    const idx = this.segments.findIndex((s) => s.id === id)
+    if (idx < 0) return false
+    this.segments.splice(idx, 1)
+    this.emit({ type: 'history', segments: this.history() })
+    return true
+  }
+
   history(): SubtitleSegment[] {
     const all = this.segments.map(clone)
     if (this.openSegment) all.push(clone(this.openSegment))

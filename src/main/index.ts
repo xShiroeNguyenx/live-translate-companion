@@ -536,6 +536,16 @@ if (gotLock) {
         if (id) outgoingStore.fillTarget(id, target)
       }
     })
+    // Xoá 1 câu khỏi transcript chiều đi: ghi lại file tự lưu + bản ghi lịch sử ngay
+    const removeOutgoingSegment = (id: unknown): boolean => {
+      if (typeof id !== 'string' || !outgoingStore.remove(id)) return false
+      const session = outgoingSaver.currentSession
+      if (outgoingStore.export('txt')) outgoingSaver.flush()
+      // xoá hết câu: file cũ không được ghi đè bằng nội dung rỗng → bỏ luôn bản ghi + file của phiên
+      else if (session) history.delete(session.id)
+      return true
+    }
+
     typedSpeech.on('state', (state: TypedSpeechState) => sendToControl(IPC.evTypedState, state))
 
     // PTT toàn cục chỉ sống khi chiều đi đang chạy (không tạm dừng) ở chế độ push-to-talk —
@@ -611,6 +621,7 @@ if (gotLock) {
       summary,
       assistant,
       typedSpeech,
+      removeOutgoingSegment,
       meetingTitle,
       setMeetingTitle,
       renameHistory,

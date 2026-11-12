@@ -5,6 +5,7 @@ import {
   TEXT_TRANSLATE_PRICE_USD_PER_M_OUTPUT,
   TEXT_TRANSLATE_TIMEOUT_MS,
   TTS_TIMEOUT_MS,
+  TYPED_SPEECH_CACHE_SENTENCES,
   TYPED_SPEECH_MAX_CHARS,
   TYPED_SPEECH_TAIL_MS
 } from '../../shared/constants'
@@ -59,7 +60,8 @@ export class TypedSpeechService extends EventEmitter {
   // tăng mỗi lần Phát/Dừng: kết quả của lần cũ về muộn thì bỏ
   private generation = 0
   private timer: ReturnType<typeof setTimeout> | null = null
-  private cached: Audio | null = null
+  // giọng của các câu gần đây (Map giữ thứ tự chèn: đầu = lâu chưa dùng nhất) → phát lại không tốn tiền
+  private cache = new Map<string, Audio>()
   private inflight: { key: string; promise: Promise<Audio> } | null = null
 
   constructor(private deps: TypedSpeechDeps) {
@@ -134,7 +136,13 @@ export class TypedSpeechService extends EventEmitter {
   // còn không thì gọi model (model tạo giọng gần bằng thời gian thực: câu 6 giây mất ~6 giây).
   private audioFor(apiKey: string, text: string, voice: string): Promise<Audio> {
     const key = `${voice}\n${text}`
-    if (this.cached?.key === key) return Promise.resolve(this.cached)
+    const hit = this.cache.get(key)
+    if (hit) {
+      // đưa về cuối = vừa dùng
+      this.cache.delete(key)
+      this.cache.set(key, hit)
+      return Promise.resolve(hit)
+    }
     if (this.inflight?.key === key) return this.inflight.promise
     const promise = (async (): Promise<Audio> => {
       const res = await (this.deps.synthesize ?? synthesizeSpeech)({
@@ -145,8 +153,10 @@ export class TypedSpeechService extends EventEmitter {
       })
       this.deps.onCost(ttsCostUsd(res.usage))
       const audio: Audio = { key, pcm: res.pcm, durationMs: res.durationMs }
-      // chỉ giữ câu gần nhất (để phát ngay, và phát lại không tốn tiền)
-      this.cached = audio
+      this.cache.set(key, audio)
+      while (this.cache.size > TYPED_SPEECH_CACHE_SENTENCES) {
+        this.cache.delete(this.cache.keys().next().value as string)
+      }
       return audio
     })()
     const entry = { key, promise }
@@ -173,8 +183,9 @@ export class TypedSpeechService extends EventEmitter {
     }
   }
 
-  // text = câu sẽ đọc (bản dịch, có thể đã được người dùng sửa); source = câu gốc đã gõ
-  async speak(text: unknown, source: unknown): Promise<TypedSpeakResult> {
+  // text = câu sẽ đọc (bản dịch, có thể đã được người dùng sửa); source = câu gốc đã gõ.
+  // replay = phát lại 1 câu đã có trong transcript: không ghi thêm dòng trùng.
+  async speak(text: unknown, source: unknown, replay: unknown = false): Promise<TypedSpeakResult> {
     const input = this.checkText(text, 'Chưa có câu để phát. Bấm Dịch trước.')
     if (!input.ok) return input
     if (this.state !== 'idle') return { ok: false, error: 'Đang phát câu trước, chờ xong hoặc bấm Dừng.' }
@@ -230,7 +241,9 @@ export class TypedSpeechService extends EventEmitter {
     }
 
     this.deps.play(pcm)
-    this.deps.onSpoken(typeof source === 'string' ? source.trim() : '', input.text)
+    if (replay !== true) {
+      this.deps.onSpoken(typeof source === 'string' ? source.trim() : '', input.text)
+    }
     this.timer = setTimeout(() => {
       if (gen === this.generation) this.finish()
     }, durationMs + TYPED_SPEECH_TAIL_MS)

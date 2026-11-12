@@ -46,6 +46,7 @@ export interface IpcContext {
   renameHistory(id: unknown, title: unknown): boolean
   assistant: AssistantService
   typedSpeech: TypedSpeechService
+  removeOutgoingSegment(id: unknown): boolean
   usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
@@ -78,10 +79,11 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.outgoingPause, () => ctx.outgoing.pause())
   ipcMain.handle(IPC.outgoingResume, () => ctx.resumeOutgoing())
 
+  ipcMain.handle(IPC.outgoingRemoveSegment, (_e, id: unknown) => ctx.removeOutgoingSegment(id))
   ipcMain.handle(IPC.typedTranslate, (_e, text: unknown) => ctx.typedSpeech.translate(text))
   ipcMain.handle(IPC.typedPrepare, (_e, text: unknown) => ctx.typedSpeech.prepare(text))
-  ipcMain.handle(IPC.typedSpeak,(_e, text: unknown, source: unknown) =>
-    ctx.typedSpeech.speak(text, source)
+  ipcMain.handle(IPC.typedSpeak, (_e, text: unknown, source: unknown, replay: unknown) =>
+    ctx.typedSpeech.speak(text, source, replay)
   )
   ipcMain.handle(IPC.typedStop, () => ctx.typedSpeech.stop())
   ipcMain.handle(IPC.typedGetState, () => ctx.typedSpeech.getState())

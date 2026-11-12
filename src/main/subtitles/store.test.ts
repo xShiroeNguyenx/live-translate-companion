@@ -17,6 +17,25 @@ function makeStore(opts: { gapMs?: number; minSplitChars?: number; maxChars?: nu
 }
 
 describe('SubtitleStore', () => {
+  it('remove: xoá 1 câu đã chốt, phát lại danh sách; id lạ / câu đang dở thì không xoá', () => {
+    const { store, updates } = makeStore()
+    const a = store.commitSource('Câu một')!
+    store.fillTarget(a, '一つ目。')
+    const b = store.commitSource('Câu hai')!
+    store.fillTarget(b, '二つ目。')
+    store.appendSource('đang nói dở')
+
+    expect(store.remove(a)).toBe(true)
+    expect(store.history().map((s) => s.source.text)).toEqual(['Câu hai', 'đang nói dở'])
+    expect(updates.at(-1)).toEqual({ type: 'history', segments: store.history() })
+    expect(store.export('txt')).not.toContain('Câu một')
+
+    const open = store.history()[1].id
+    expect(store.remove(open)).toBe(false)
+    expect(store.remove(a)).toBe(false)
+    expect(store.history()).toHaveLength(2)
+  })
+
   it('ghép fragment vào/ra cùng 1 segment đang mở', () => {
     const { store } = makeStore()
     store.appendSource('こんにち')

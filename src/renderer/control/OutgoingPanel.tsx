@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TTS_VOICES } from '../../shared/constants'
 import { LANGUAGES, languageShort } from '../../shared/languages'
-import type { OutgoingMode } from '../../shared/types'
+import type { OutgoingMode, SubtitleSegment } from '../../shared/types'
 import { useControlStore } from './store'
 import { TypedSpeechBox } from './TypedSpeechBox'
 import { formatDuration, isVirtualCable, STATE_COLORS, STATE_LABELS } from './ui-helpers'
@@ -25,7 +25,7 @@ function loadInputMode(): InputMode {
 // Tab "Dịch": bật/tắt chiều đi, PTT hoặc gõ để nói, transcript
 export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
   const api = window.controlApi
-  const { settings, outgoing, outgoingMetrics, outgoingSegments, outgoingSinkState } =
+  const { settings, outgoing, outgoingMetrics, outgoingSegments, outgoingSinkState, typedSpeech } =
     useControlStore()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +79,17 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  // phát lại 1 câu trong transcript bằng giọng đọc (câu nói qua micro cũng phát lại được)
+  const replay = async (seg: SubtitleSegment): Promise<void> => {
+    setError(null)
+    try {
+      const r = await api.speakTyped(seg.target.text, seg.source.text, true)
+      if (!r.ok && !r.stopped) setError(r.error ?? 'Không phát lại được.')
+    } catch (err) {
+      setError(String(err))
     }
   }
 
@@ -172,6 +183,9 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
         segments={outgoingSegments}
         placeholder={typing ? 'Câu đã phát sẽ hiện ở đây…' : 'Chưa nói gì…'}
         className="outgoing"
+        onReplay={(seg) => void replay(seg)}
+        replayDisabled={typedSpeech !== 'idle'}
+        onDelete={(seg) => void api.removeOutgoingSegment(seg.id)}
       />
     </section>
   )

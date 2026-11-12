@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.4] — 2026-11-12
+
+### Thêm mới
+- **Phát lại câu đã nói (chiều đi)**: mỗi câu trong danh sách của thẻ Chiều đi có nút **🔁 Phát lại**, dùng khi người nghe hỏi lại hoặc chưa nghe rõ.
+  - **Không tốn thêm tiền** và ra tiếng ngay: app giữ sẵn giọng của 30 câu gần nhất (ở bản 0.5.3 chỉ giữ 1 câu).
+  - Lần phát lại phải tạo giọng mới, tốn như lần đầu và chờ vài giây, trong ba trường hợp: đã tắt rồi mở lại app, đã đổi **🗣 Giọng đọc**, hoặc câu cũ hơn 30 câu gần nhất.
+  - Câu bạn nói qua micro cũng phát lại được. Lần đầu phát lại câu đó có tốn tiền, vì trước đó chưa có giọng đọc cho nó.
+  - Phát lại không ghi thêm dòng vào transcript. Đang phát một câu thì các nút Phát lại tạm khoá.
+- **Xoá câu khỏi transcript chiều đi**: nút **✕ Xoá** cạnh nút Phát lại, dùng cho câu gõ nhầm hoặc câu thử.
+  - Câu bị xoá biến mất khỏi danh sách, file tự lưu và lịch sử, nên tóm tắt và trợ lý cuộc họp không tính tới nó nữa.
+  - Xoá ngay, **không hỏi lại** và không khôi phục được. Chi phí đã tốn cho câu đó giữ nguyên.
+  - Xoá câu cuối cùng còn lại thì app bỏ luôn file transcript và mục lịch sử của phiên chiều đi đó. Nói hoặc gõ câu mới thì phiên được ghi lại như thường.
+  - Câu đang nói dở chưa có nút Xoá; nút hiện khi câu đã chốt.
+
 ## [0.5.3] — 2026-11-12
 
 ### Thêm mới
