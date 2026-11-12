@@ -323,6 +323,42 @@ button:disabled {
   border-color: #ef4444;
 }
 
+/* ── Chiều đi "Gõ để nói" ── */
+.typed-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.typed-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.typed-row textarea {
+  resize: none;
+}
+
+.typed-row button {
+  flex: 0 0 72px;
+}
+
+textarea.typed-translation {
+  color: #86efac;
+}
+
+.typed-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hint.stale {
+  color: #fde68a;
+}
+
 .subtitle-list.outgoing {
   height: 90px;
 }

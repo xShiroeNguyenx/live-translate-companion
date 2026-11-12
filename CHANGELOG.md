@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.3] — 2026-11-12
+
+### Thêm mới
+- **Gõ để nói (chiều đi)**: không tiện nói thì gõ chữ, app dịch rồi đọc thành giọng vào meeting thay bạn.
+  - Trên thẻ Chiều đi (tab Dịch) có nút chuyển **🎤 Nói / ⌨ Gõ**. App nhớ lựa chọn này cho lần mở sau.
+  - Gõ câu tiếng Việt rồi bấm **Dịch** (hoặc Enter). Bản dịch hiện ở ô bên dưới và **nằm đó chờ bạn**: đọc lại, sửa tay nếu cần, chưa có gì phát ra cả.
+  - Bấm **▶ Phát** (hoặc Ctrl+Enter) khi tới lượt mình nói. Giọng đi vào thiết bị **📤 Phát vào** (CABLE Input), người trong meeting nghe như bạn đang nói. Bấm **■ Dừng** để cắt giữa chừng.
+  - Ngay sau khi dịch, app **chuẩn bị giọng sẵn** (mất khoảng bằng độ dài câu), nên bấm Phát là ra tiếng ngay. Phát lại cùng một câu không tốn thêm tiền. Nếu bạn sửa bản dịch thì lần Phát đó phải chờ vài giây để tạo giọng mới.
+  - **Không cần bật chiều đi** (micro). Hai cách dùng song song được: đang bật micro vẫn gõ để nói được.
+  - Bản dịch dùng văn nói lịch sự (tiếng Nhật: thể です/ます) và theo **Ngữ cảnh cuộc họp** của bạn.
+  - Câu đã phát được ghi vào transcript chiều đi, nên tự lưu, lịch sử, tóm tắt và trợ lý cuộc họp đều biết bạn đã nói gì.
+  - Chọn giọng ở **Cài đặt → Chiều đi → 🗣 Giọng đọc** (3 giọng nữ, 3 giọng nam).
+  - Chi phí khoảng **$0,03 cho mỗi phút giọng** (một câu 6 giây khoảng $0,003), tính vào chi phí ngày/tháng và giới hạn tháng. Câu đã dịch nhưng không phát vẫn tốn phần tạo giọng này.
+  - App **không phát** nếu chưa chọn thiết bị "Phát vào" hoặc không mở được thiết bị đó, và nói rõ lý do, thay vì lặng lẽ phát ra loa máy bạn.
+  - Cách hoạt động: dịch bằng `gemini-flash-lite-latest`, tạo giọng bằng `gemini-3.8-flash-tts`.
+
+### Sửa lỗi
+- **Bật chiều đi (hoặc Bắt đầu dịch) thất bại chỉ hiện `[object Object]`.** Giờ app nói rõ nguyên nhân và việc cần làm, ví dụ "Không tìm thấy micro đã chọn. Cắm lại micro hoặc chọn micro khác ở Cài đặt → Chiều đi", hoặc Windows đang chặn quyền micro, hoặc micro đang bị app khác giữ.
+
 ## [0.5.2] — 2026-11-09
 
 ### Thêm mới

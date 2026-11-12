@@ -70,6 +70,8 @@ export interface AppSettings {
   // thiết bị nhận giọng dịch chiều đi — nên là "CABLE Input" để vào meeting như mic ảo
   outgoingDeviceId: string
   outgoingDeviceLabel: string
+  // giọng đọc của "Gõ để nói" (id trong TTS_VOICES)
+  typedSpeechVoice: string
   overlayFontSize: number
   overlayOpacity: number
   overlayClickThrough: boolean
@@ -151,6 +153,25 @@ export interface AssistantReplyResult {
   suggestions?: ReplySuggestion[]
   // mã ngôn ngữ của `translation` (đích chiều đi)
   replyLanguage?: string
+  error?: string
+}
+
+// ── Chiều đi "Gõ để nói" ──
+// synthesizing = đang chờ model tạo giọng; playing = đang phát vào thiết bị "Phát vào"
+export type TypedSpeechState = 'idle' | 'synthesizing' | 'playing'
+
+export interface TypedTranslateResult {
+  ok: boolean
+  translation?: string
+  error?: string
+}
+
+export interface TypedSpeakResult {
+  ok: boolean
+  // độ dài đoạn giọng sẽ phát (ms)
+  durationMs?: number
+  // người dùng bấm Dừng trong lúc chờ — không phải lỗi
+  stopped?: boolean
   error?: string
 }
 

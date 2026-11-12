@@ -1,22 +1,47 @@
 import { useState } from 'react'
+import { TTS_VOICES } from '../../shared/constants'
 import { LANGUAGES, languageShort } from '../../shared/languages'
 import type { OutgoingMode } from '../../shared/types'
 import { useControlStore } from './store'
+import { TypedSpeechBox } from './TypedSpeechBox'
 import { formatDuration, isVirtualCable, STATE_COLORS, STATE_LABELS } from './ui-helpers'
 import { LevelMeter, SegmentList, VadSlider, Warn } from './widgets'
 
 // chiều đi: người dùng nói tiếng Việt → dịch sang ngôn ngữ khác
 const TARGET_OPTIONS = LANGUAGES.filter((l) => l.code !== 'vi')
 
-// Tab "Dịch": bật/tắt chiều đi, PTT, transcript
+// cách đưa lời vào chiều đi: nói qua micro, hoặc gõ rồi cho máy đọc
+type InputMode = 'speak' | 'type'
+const INPUT_MODE_KEY = 'outgoingInputMode'
+
+function loadInputMode(): InputMode {
+  try {
+    return localStorage.getItem(INPUT_MODE_KEY) === 'type' ? 'type' : 'speak'
+  } catch {
+    return 'speak'
+  }
+}
+
+// Tab "Dịch": bật/tắt chiều đi, PTT hoặc gõ để nói, transcript
 export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
   const api = window.controlApi
   const { settings, outgoing, outgoingMetrics, outgoingSegments, outgoingSinkState } =
     useControlStore()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [input, setInput] = useState<InputMode>(loadInputMode)
 
   if (!api || !settings) return <></>
+
+  const typing = input === 'type'
+  const chooseInput = (mode: InputMode): void => {
+    setInput(mode)
+    try {
+      localStorage.setItem(INPUT_MODE_KEY, mode)
+    } catch {
+      /* không lưu được thì lần sau về mặc định */
+    }
+  }
 
   const running = !['idle', 'error'].includes(outgoing.state)
   const paused = outgoing.state === 'paused'
@@ -66,7 +91,17 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
       <div className="card-head">
         <span className="led" style={{ background: STATE_COLORS[outgoing.state] }} />
         <h2>Chiều đi · Tôi → {targetLabel}</h2>
-        <span className="state-label">{STATE_LABELS[outgoing.state]}</span>
+        <div className="tabs" title="Nói qua micro, hoặc gõ chữ rồi cho máy đọc vào meeting">
+          <button className={typing ? '' : 'active'} onClick={() => chooseInput('speak')}>
+            🎤 Nói
+          </button>
+          <button className={typing ? 'active' : ''} onClick={() => chooseInput('type')}>
+            ⌨ Gõ
+          </button>
+        </div>
+        {(!typing || running) && (
+          <span className="state-label">{STATE_LABELS[outgoing.state]}</span>
+        )}
         {outgoing.usingFallbackClient && <span className="badge">raw-ws</span>}
       </div>
 
@@ -83,6 +118,8 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
         </Warn>
       )}
 
+      {/* đang gõ mà phiên micro vẫn chạy → vẫn hiện hàng này để tắt được */}
+      {(!typing || running) && (
       <div className="row">
         <button
           className={running ? 'btn-stop' : 'btn-start'}
@@ -108,8 +145,11 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
           {outgoingMetrics.reconnects > 0 && <span>🔁 {outgoingMetrics.reconnects}</span>}
         </div>
       </div>
+      )}
 
-      {isPtt ? (
+      {typing ? (
+        <TypedSpeechBox onOpenSettings={onOpenSettings} />
+      ) : isPtt ? (
         <button
           className={`ptt-btn ${talking ? 'talking' : ''}`}
           disabled={!running || paused}
@@ -128,7 +168,11 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
         <LevelMeter rmsDb={outgoingMetrics.rmsDb} thresholdDb={settings.outgoingVadThresholdDb} />
       )}
 
-      <SegmentList segments={outgoingSegments} placeholder="Chưa nói gì…" className="outgoing" />
+      <SegmentList
+        segments={outgoingSegments}
+        placeholder={typing ? 'Câu đã phát sẽ hiện ở đây…' : 'Chưa nói gì…'}
+        className="outgoing"
+      />
     </section>
   )
 }
@@ -213,6 +257,20 @@ export function OutgoingSettings(): React.JSX.Element {
           onChange={(db) => void patchSettings({ outgoingVadThresholdDb: db })}
         />
       )}
+      <div className="row">
+        <span className="field-label">🗣 Giọng đọc</span>
+        <select
+          value={settings.typedSpeechVoice}
+          title="Giọng dùng cho “⌨ Gõ” ở tab Dịch (gõ chữ rồi cho máy đọc vào meeting)"
+          onChange={(e) => void patchSettings({ typedSpeechVoice: e.target.value })}
+        >
+          {TTS_VOICES.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+      </div>
       {!hasCable && (
         <p className="hint">
           Chưa thấy “CABLE Input”. Cài VB-Audio Virtual Cable (vb-audio.com/Cable, miễn phí, cần

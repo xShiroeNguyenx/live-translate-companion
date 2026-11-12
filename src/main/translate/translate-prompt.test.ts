@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildTranslatePrompt, englishLanguageName } from './translate-prompt'
+import {
+  buildTranslatePrompt,
+  buildTypedSpeechPrompt,
+  englishLanguageName
+} from './translate-prompt'
 
 describe('translate-prompt', () => {
   it('tên ngôn ngữ tiếng Anh từ mã BCP-47; mã lạ giữ nguyên', () => {
@@ -30,6 +34,24 @@ describe('translate-prompt', () => {
     expect(p).not.toContain('Meeting context')
     expect(p).not.toContain('Previous segments')
     expect(p).toContain('into Japanese (ja)')
+  })
+
+  it('“Gõ để nói”: dịch để ĐỌC LÊN — lịch sự, câu trơn, không trả lời thay', () => {
+    const p = buildTypedSpeechPrompt({
+      text: '  Bên em gửi báo giá trước thứ 6 được không?  ',
+      context: 'Sakura = tên dự án',
+      targetLanguage: 'ja'
+    })
+    expect(p).toContain('into Japanese (ja)')
+    expect(p).toContain('read aloud')
+    expect(p).toContain('です/ます')
+    expect(p).toContain('no markdown')
+    expect(p).toContain('Never answer')
+    expect(p).toContain('Meeting context and glossary:\nSakura = tên dự án')
+    expect(p.trimEnd().endsWith('MESSAGE:\nBên em gửi báo giá trước thứ 6 được không?')).toBe(true)
+    expect(buildTypedSpeechPrompt({ text: 'Hi', targetLanguage: 'en' })).not.toContain(
+      'Meeting context'
+    )
   })
 
   it('ngữ cảnh quá dài bị cắt', () => {

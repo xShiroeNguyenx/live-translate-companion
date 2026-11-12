@@ -16,6 +16,9 @@ import type {
   SessionStateInfo,
   SubtitleUpdate,
   SummaryStatus,
+  TypedSpeakResult,
+  TypedSpeechState,
+  TypedTranslateResult,
   UpdateStatus,
   UsageSummary,
   WindowsAudioDevice
@@ -43,6 +46,11 @@ export const IPC = {
   outgoingPtt: 'outgoing:ptt',
   outgoingPause: 'outgoing:pause',
   outgoingResume: 'outgoing:resume',
+  typedTranslate: 'typed:translate',
+  typedPrepare: 'typed:prepare',
+  typedSpeak: 'typed:speak',
+  typedStop: 'typed:stop',
+  typedGetState: 'typed:getState',
   appGetVersion: 'app:getVersion',
   updateCheck: 'update:check',
   updateInstall: 'update:install',
@@ -83,6 +91,7 @@ export const IPC = {
   evMicPlaybackChunk: 'mic:playbackChunk',
   evMicPlaybackFlush: 'mic:playbackFlush',
   evOutgoingConfig: 'outgoing:config',
+  evTypedState: 'typed:state',
   evUpdateStatus: 'update:status',
   evHistoryChanged: 'history:changed',
   evSummaryStatus: 'summary:status',
@@ -128,6 +137,14 @@ export interface ControlApi {
   setPushToTalk(active: boolean): Promise<void>
   pauseOutgoing(): Promise<void>
   resumeOutgoing(): Promise<{ ok: boolean; error?: string }>
+  // "Gõ để nói": dịch câu gõ sang ngôn ngữ đích chiều đi (chưa phát)
+  translateTyped(text: string): Promise<TypedTranslateResult>
+  // tạo sẵn giọng cho `text` (chưa phát) để lúc bấm Phát ra tiếng ngay
+  prepareTyped(text: string): Promise<TypedSpeakResult>
+  // đọc `text` thành giọng vào thiết bị "Phát vào"; trả về khi bắt đầu phát (source = câu gốc đã gõ)
+  speakTyped(text: string, source: string): Promise<TypedSpeakResult>
+  stopTyped(): Promise<void>
+  getTypedState(): Promise<TypedSpeechState>
   getAppVersion(): Promise<string>
   checkForUpdate(): Promise<void>
   installUpdate(): Promise<void>
@@ -168,6 +185,7 @@ export interface ControlApi {
   onOutgoingMetrics(cb: (m: Metrics) => void): () => void
   onOutgoingSubtitle(cb: (u: SubtitleUpdate) => void): () => void
   onOutgoingSinkState(cb: (s: PlaybackSinkState) => void): () => void
+  onTypedState(cb: (s: TypedSpeechState) => void): () => void
   onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
   onHistoryChanged(cb: () => void): () => void
   onSummaryStatus(cb: (s: SummaryStatus) => void): () => void

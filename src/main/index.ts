@@ -14,7 +14,9 @@ import { meetingTitleOf, normalizeTitle } from '../shared/meeting-title'
 import { countSpokenSegments } from '../shared/pause'
 import type {
   AppSettings,
+  OutgoingConfig,
   SessionDirection,
+  TypedSpeechState,
   UpdateStatus,
   UsageSummary
 } from '../shared/types'
@@ -28,6 +30,7 @@ import { HistoryStore } from './history/history-store'
 import { MeetingTitleTracker } from './history/meeting-title-tracker'
 import { registerIpc } from './ipc'
 import { KeywordNotifier } from './keyword-notifier'
+import { TypedSpeechService } from './outgoing/typed-speech'
 import { getApiKey } from './secrets'
 import { SettingsStore } from './settings'
 import type { TranscriptInput } from './summary/summarizer'
@@ -47,6 +50,7 @@ import {
   createEngineWindow,
   createOverlayWindow,
   installLoopbackHandler,
+  prepareEngineCable,
   startEngineCapture,
   startEngineMic,
   stopEngineCapture,
@@ -484,23 +488,55 @@ if (gotLock) {
       })
     }
 
-    // CABLE player chỉ phát khi phiên chiều đi đang chạy
+    // CABLE player chỉ phát khi phiên chiều đi đang chạy, hoặc "Gõ để nói" đang phát một câu
+    const cableEnabled = (): boolean => outgoing.isStarted() || typedSpeech.isPlaying()
+    const outgoingConfig = (s: AppSettings): OutgoingConfig => ({
+      enabled: cableEnabled(),
+      deviceId: s.outgoingDeviceId,
+      deviceLabel: s.outgoingDeviceLabel
+    })
     const sendOutgoingConfig = (s: AppSettings): void => {
       if (engine.isDestroyed()) return
-      engine.webContents.send(IPC.evOutgoingConfig, {
-        enabled: outgoing.isStarted(),
-        deviceId: s.outgoingDeviceId,
-        deviceLabel: s.outgoingDeviceLabel
-      })
+      engine.webContents.send(IPC.evOutgoingConfig, outgoingConfig(s))
     }
 
     // Tránh re-route sink mỗi lần PTT lật streaming↔gated: chỉ gửi config khi bật/tắt thật sự đổi
     let lastOutgoingEnabled = false
     const sendOutgoingConfigIfChanged = (): void => {
-      if (outgoing.isStarted() === lastOutgoingEnabled) return
-      lastOutgoingEnabled = outgoing.isStarted()
+      if (cableEnabled() === lastOutgoingEnabled) return
+      lastOutgoingEnabled = cableEnabled()
       sendOutgoingConfig(settings.get())
     }
+
+    // ── Chiều đi "Gõ để nói": gõ → dịch → đọc thành giọng vào thiết bị "Phát vào" ──
+    const typedSpeech = new TypedSpeechService({
+      getApiKey: () => getApiKey(),
+      getSettings: () => settings.get(),
+      budgetError,
+      onCost: recordFlashCost,
+      prepareSink: () => {
+        // gọi lúc service đã ở 'playing' → enabled = true; ghi nhớ để lúc nhả biết là đã bật
+        lastOutgoingEnabled = true
+        return prepareEngineCable(engine, outgoingConfig(settings.get()))
+      },
+      play: (pcm) => {
+        if (engine.isDestroyed()) return
+        engine.webContents.send(
+          IPC.evMicPlaybackChunk,
+          pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength)
+        )
+      },
+      flush: () => {
+        if (!engine.isDestroyed()) engine.webContents.send(IPC.evMicPlaybackFlush)
+      },
+      release: () => sendOutgoingConfigIfChanged(),
+      // vào cùng transcript chiều đi với lời nói qua micro → tự lưu, lịch sử, trợ lý đều thấy
+      onSpoken: (source, target) => {
+        const id = outgoingStore.commitSource(source || target)
+        if (id) outgoingStore.fillTarget(id, target)
+      }
+    })
+    typedSpeech.on('state', (state: TypedSpeechState) => sendToControl(IPC.evTypedState, state))
 
     // PTT toàn cục chỉ sống khi chiều đi đang chạy (không tạm dừng) ở chế độ push-to-talk —
     // tạm dừng thì nhả Ctrl+Space cho app khác dùng
@@ -574,6 +610,7 @@ if (gotLock) {
       history,
       summary,
       assistant,
+      typedSpeech,
       meetingTitle,
       setMeetingTitle,
       renameHistory,

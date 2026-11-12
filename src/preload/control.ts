@@ -11,6 +11,7 @@ import type {
   SessionStateInfo,
   SubtitleUpdate,
   SummaryStatus,
+  TypedSpeechState,
   UpdateStatus,
   UsageSummary
 } from '../shared/types'
@@ -47,6 +48,11 @@ const api: ControlApi = {
   setPushToTalk: (active: boolean) => ipcRenderer.invoke('outgoing:ptt', active),
   pauseOutgoing: () => ipcRenderer.invoke('outgoing:pause'),
   resumeOutgoing: () => ipcRenderer.invoke('outgoing:resume'),
+  translateTyped: (text: string) => ipcRenderer.invoke('typed:translate', text),
+  prepareTyped: (text: string) => ipcRenderer.invoke('typed:prepare', text),
+  speakTyped: (text: string, source: string) => ipcRenderer.invoke('typed:speak', text, source),
+  stopTyped: () => ipcRenderer.invoke('typed:stop'),
+  getTypedState: () => ipcRenderer.invoke('typed:getState'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
   checkForUpdate: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
@@ -86,6 +92,7 @@ const api: ControlApi = {
   onOutgoingSubtitle: (cb: (u: SubtitleUpdate) => void) => subscribe('outgoing:subtitle', cb),
   onOutgoingSinkState: (cb: (s: PlaybackSinkState) => void) =>
     subscribe('outgoing:sinkStateChanged', cb),
+  onTypedState: (cb: (s: TypedSpeechState) => void) => subscribe('typed:state', cb),
   onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb),
   onHistoryChanged: (cb: () => void) => subscribe('history:changed', cb),
   onSummaryStatus: (cb: (s: SummaryStatus) => void) => subscribe('summary:status', cb),

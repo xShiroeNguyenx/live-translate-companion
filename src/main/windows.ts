@@ -1,6 +1,7 @@
 import { BrowserWindow, desktopCapturer, screen, session } from 'electron'
 import { join } from 'node:path'
 import appIcon from '../../resources/icon.png?asset'
+import type { OutgoingConfig, PlaybackSinkState } from '../shared/types'
 
 const devUrl = process.env['ELECTRON_RENDERER_URL']
 
@@ -116,6 +117,19 @@ export async function startEngineMic(win: BrowserWindow, deviceId: string): Prom
     `window.__startMic ? window.__startMic(${arg}) : Promise.reject(new Error("Engine chưa sẵn sàng"))`,
     true
   )
+}
+
+// Bật player CABLE và route tới thiết bị "Phát vào" NGAY, chờ engine trả kết quả route thật
+// (dùng cho "Gõ để nói": phải chắc đã vào đúng thiết bị rồi mới phát)
+export async function prepareEngineCable(
+  win: BrowserWindow,
+  config: OutgoingConfig
+): Promise<PlaybackSinkState> {
+  const arg = JSON.stringify(config)
+  return (await win.webContents.executeJavaScript(
+    `window.__prepareCable ? window.__prepareCable(${arg}) : Promise.reject(new Error("Engine chưa sẵn sàng"))`,
+    true
+  )) as PlaybackSinkState
 }
 
 export async function stopEngineMic(win: BrowserWindow): Promise<void> {

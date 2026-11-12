@@ -4,7 +4,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import {
   DEFAULT_SUMMARY_MODEL,
+  DEFAULT_TTS_VOICE,
   OUTGOING_DEFAULT_TARGET,
+  TTS_VOICES,
   VAD_DEFAULT_THRESHOLD_DB
 } from '../shared/constants'
 import {
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   outgoingVadThresholdDb: VAD_DEFAULT_THRESHOLD_DB,
   outgoingDeviceId: '',
   outgoingDeviceLabel: '',
+  typedSpeechVoice: DEFAULT_TTS_VOICE,
   overlayFontSize: 22,
   overlayOpacity: 0.85,
   overlayClickThrough: false,
@@ -51,7 +54,10 @@ function normalize(s: AppSettings): AppSettings {
   return {
     ...s,
     apiVersion: normalizeApiVersion(s.apiVersion),
-    incomingMode: s.incomingMode === 'text' ? 'text' : 'speech'
+    incomingMode: s.incomingMode === 'text' ? 'text' : 'speech',
+    typedSpeechVoice: TTS_VOICES.some((v) => v.id === s.typedSpeechVoice)
+      ? s.typedSpeechVoice
+      : DEFAULT_TTS_VOICE
   }
 }
 

@@ -31,6 +31,7 @@ Chạy song song với mọi app họp bằng cách bắt **audio hệ thống**
 **Chiều đi — nói tiếng Việt → giọng đích vào meeting** *(cần VB-Audio Virtual Cable)*
 - Nói tiếng Việt → dịch thành giọng **Nhật/Anh/Hàn/Trung** rồi phát vào meeting như mic của bạn.
 - Chế độ **Giữ để nói (PTT)** hoặc **tự động (VAD)**; phím tắt toàn cục `Ctrl+Space`.
+- **⌨ Gõ để nói**: gõ tiếng Việt → app dịch và để sẵn bản dịch → bấm **Phát** thì đọc thành giọng vào meeting. Không cần micro.
 
 **Chống vọng & định tuyến âm thanh**
 - Đổi thiết bị "Nghe meeting" (mặc định Windows) ngay trong app.
@@ -98,6 +99,15 @@ Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audi
 Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
 
 > Khuyến nghị đeo tai nghe khi bật chiều đi để mic không hút tiếng từ loa (tránh dịch nhầm tiếng meeting bơm ngược).
+
+**Gõ để nói** (không tiện nói, hoặc muốn soạn trước câu trả lời): trên thẻ Chiều đi bấm **⌨ Gõ**.
+1. Gõ câu tiếng Việt → **Dịch** (hoặc Enter). Bản dịch hiện ở ô dưới, sửa tay được. Chưa có gì phát ra.
+2. Tới lượt mình nói thì bấm **▶ Phát** (hoặc Ctrl+Enter). Giọng đi vào **📤 Phát vào** (`CABLE Input`). **■ Dừng** để cắt giữa chừng.
+
+- Không cần bấm **Bật chiều đi**; chỉ cần đã chọn thiết bị **📤 Phát vào**.
+- App chuẩn bị giọng sẵn ngay sau khi dịch nên bấm Phát là ra tiếng liền. Sửa bản dịch thì lần Phát đó chờ thêm vài giây.
+- Chọn giọng ở **Cài đặt → Chiều đi → 🗣 Giọng đọc**. Chi phí khoảng $0.03 cho mỗi phút giọng (`gemini-3.8-flash-tts`), tính vào chi phí tháng.
+- Câu đã phát được ghi vào transcript chiều đi như lời nói qua micro.
 
 ### 4. Tự lưu transcript
 Bật sẵn mặc định. Mỗi lần **Bắt đầu dịch** / **Bật chiều đi** tạo 1 file mới đặt tên theo giờ bắt đầu:

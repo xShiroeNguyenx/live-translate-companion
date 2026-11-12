@@ -12,6 +12,7 @@ import type {
   SubtitleSegment,
   SubtitleUpdate,
   SummaryStatus,
+  TypedSpeechState,
   UpdateStatus,
   UsageSummary,
   WindowsAudioDevice
@@ -58,6 +59,15 @@ function previousTurns(items: AssistantItem[]): QaTurn[] {
     .reverse()
 }
 
+export interface TypedDraft {
+  // câu người dùng gõ
+  source: string
+  // bản dịch (sửa tay được) — đây là câu sẽ được đọc
+  translation: string
+  // câu gốc ứng với bản dịch đang hiện; khác `source` = bản dịch đã cũ
+  translatedFrom: string
+}
+
 const EMPTY_METRICS: Metrics = {
   rmsDb: -100,
   secondsSent: 0,
@@ -93,6 +103,10 @@ interface ControlState {
   outgoingMetrics: Metrics
   outgoingSegments: SubtitleSegment[]
   outgoingSinkState: PlaybackSinkState | null
+  // "Gõ để nói": trạng thái phát + bản nháp (giữ ở store để đổi tab không mất chữ đang gõ)
+  typedSpeech: TypedSpeechState
+  typedDraft: TypedDraft
+  setTypedDraft(patch: Partial<TypedDraft>): void
   appVersion: string
   update: UpdateStatus
   usage: UsageSummary
@@ -158,6 +172,9 @@ export const useControlStore = create<ControlState>((set, get) => ({
   outgoingMetrics: EMPTY_METRICS,
   outgoingSegments: [],
   outgoingSinkState: null,
+  typedSpeech: 'idle',
+  typedDraft: { source: '', translation: '', translatedFrom: '' },
+  setTypedDraft: (patch) => set((s) => ({ typedDraft: { ...s.typedDraft, ...patch } })),
   appVersion: '',
   update: { state: 'idle' },
   usage: { todayUsd: 0, monthUsd: 0, budgetUsd: 0 },
@@ -197,6 +214,8 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onOutgoingState((outgoing) => set({ outgoing }))
     api.onOutgoingMetrics((outgoingMetrics) => set({ outgoingMetrics }))
     api.onOutgoingSinkState((outgoingSinkState) => set({ outgoingSinkState }))
+    void api.getTypedState().then((typedSpeech) => set({ typedSpeech }))
+    api.onTypedState((typedSpeech) => set({ typedSpeech }))
     api.onUpdateStatus((update) => set({ update }))
     void api.getUsage().then((usage) => set({ usage }))
     api.onUsage((usage) => set({ usage }))

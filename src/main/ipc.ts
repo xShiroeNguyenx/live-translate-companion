@@ -18,6 +18,7 @@ import type { AssistantService } from './assistant/assistant-service'
 import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
 import type { MeetingTitleTracker } from './history/meeting-title-tracker'
+import type { TypedSpeechService } from './outgoing/typed-speech'
 import type { SummaryService } from './summary/summary-service'
 import type { SessionManager } from './gemini/session-manager'
 import { listLiveModels } from './gemini/model-list'
@@ -44,6 +45,7 @@ export interface IpcContext {
   setMeetingTitle(title: unknown): string
   renameHistory(id: unknown, title: unknown): boolean
   assistant: AssistantService
+  typedSpeech: TypedSpeechService
   usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
@@ -75,6 +77,14 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.outgoingPtt, (_e, active: boolean) => ctx.outgoing.setPushToTalk(active))
   ipcMain.handle(IPC.outgoingPause, () => ctx.outgoing.pause())
   ipcMain.handle(IPC.outgoingResume, () => ctx.resumeOutgoing())
+
+  ipcMain.handle(IPC.typedTranslate, (_e, text: unknown) => ctx.typedSpeech.translate(text))
+  ipcMain.handle(IPC.typedPrepare, (_e, text: unknown) => ctx.typedSpeech.prepare(text))
+  ipcMain.handle(IPC.typedSpeak,(_e, text: unknown, source: unknown) =>
+    ctx.typedSpeech.speak(text, source)
+  )
+  ipcMain.handle(IPC.typedStop, () => ctx.typedSpeech.stop())
+  ipcMain.handle(IPC.typedGetState, () => ctx.typedSpeech.getState())
 
   ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
   ipcMain.handle(IPC.updateCheck, () => ctx.updater.check())

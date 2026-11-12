@@ -1,3 +1,4 @@
+import { errorText, micErrorText } from '../../shared/error-text'
 import type { OutgoingConfig, PlaybackConfig, PlaybackSinkState } from '../../shared/types'
 import { LoopbackCapture } from './capture'
 import { listInputDevices, listOutputDevices } from './devices'
@@ -11,6 +12,7 @@ declare global {
     __stopCapture?: () => Promise<void>
     __startMic?: (deviceId: string) => Promise<void>
     __stopMic?: () => Promise<void>
+    __prepareCable?: (config: OutgoingConfig) => Promise<PlaybackSinkState>
   }
 }
 
@@ -46,9 +48,10 @@ window.__startCapture = async (): Promise<void> => {
     })
     syncMonitor()
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = errorText(err)
     api.sendCaptureError(message)
-    throw err
+    // ném Error thật: DOMException qua executeJavaScript về main thành "[object Object]"
+    throw new Error(message)
   }
 }
 
@@ -62,9 +65,9 @@ window.__startMic = async (deviceId: string): Promise<void> => {
     await micCapture.start(deviceId, (pcm, rmsDb, ts) => api.sendMicChunk(pcm, rmsDb, ts))
     void pushInputDevices() // sau khi cấp quyền, label micro mới hiện đầy đủ
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = micErrorText(err)
     api.sendMicCaptureError(message)
-    throw err
+    throw new Error(message)
   }
 }
 
@@ -78,7 +81,7 @@ const applyPlayback = async (config: PlaybackConfig): Promise<void> => {
   syncMonitor()
 }
 
-const applyOutgoing = async (config: OutgoingConfig): Promise<void> => {
+const applyOutgoing = async (config: OutgoingConfig): Promise<PlaybackSinkState> => {
   const state = await cablePlayer.applyConfig({
     enabled: config.enabled,
     deviceId: config.deviceId,
@@ -86,7 +89,11 @@ const applyOutgoing = async (config: OutgoingConfig): Promise<void> => {
     monitorEnabled: false
   })
   api.sendOutgoingSinkState(state)
+  return state
 }
+
+// "Gõ để nói": main chờ kết quả route rồi mới gửi audio
+window.__prepareCable = applyOutgoing
 
 const pushOutputDevices = async (): Promise<void> => {
   try {

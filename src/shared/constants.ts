@@ -82,3 +82,30 @@ export const HISTORY_ASK_MAX_TRANSCRIPT_CHARS = 400_000
 export const OUTGOING_DEFAULT_TARGET = 'ja'
 export const OUTGOING_PTT_SHORTCUT = 'CommandOrControl+Space'
 export const VIRTUAL_MIC_HINT = 'CABLE Input'
+
+// ── Chiều đi "Gõ để nói": gõ tiếng Việt → Flash-lite dịch → model TTS đọc thành giọng vào meeting ──
+// Tên model, định dạng audio (WAV 24 kHz mono 16-bit) và giá theo ai.google.dev/gemini-api/docs
+// (speech-generation + pricing, tra 2026-11-12).
+export const TTS_MODEL = 'gemini-3.8-flash-tts'
+// USD / 1 triệu token. Lấy giá CHUẨN (áp từ 2027-01-01), không lấy giá khuyến mãi tới hết 2026
+// ($0.50 / $9.00), để ước tính không thấp hơn thực tế.
+export const TTS_PRICE_USD_PER_M_INPUT = 1.0
+export const TTS_PRICE_USD_PER_M_OUTPUT = 18.0
+// audio ra: 25 token/giây → ~$0.027/phút giọng
+export const TTS_AUDIO_TOKENS_PER_SECOND = 25
+export const TTS_EST_USD_PER_MINUTE =
+  (TTS_PRICE_USD_PER_M_OUTPUT * TTS_AUDIO_TOKENS_PER_SECOND * 60) / 1_000_000
+export const TTS_TIMEOUT_MS = 45_000
+export const TYPED_SPEECH_MAX_CHARS = 600
+// đệm sau khi audio hết, trước khi nhả player CABLE (bù độ trễ lịch phát + endpoint)
+export const TYPED_SPEECH_TAIL_MS = 400
+// giọng dựng sẵn của Gemini TTS (một phần nhỏ trong 30 giọng), tự nhận ngôn ngữ theo chữ
+export const TTS_VOICES: { id: string; label: string }[] = [
+  { id: 'Kore', label: 'Kore (nữ, rõ ràng)' },
+  { id: 'Aoede', label: 'Aoede (nữ, nhẹ nhàng)' },
+  { id: 'Leda', label: 'Leda (nữ, trẻ)' },
+  { id: 'Charon', label: 'Charon (nam, điềm đạm)' },
+  { id: 'Orus', label: 'Orus (nam, chắc giọng)' },
+  { id: 'Puck', label: 'Puck (nam, tươi)' }
+]
+export const DEFAULT_TTS_VOICE = 'Kore'

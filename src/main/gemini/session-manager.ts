@@ -1,3 +1,4 @@
+import { errorText } from '../../shared/error-text'
 import { EventEmitter } from 'node:events'
 import {
   FRAME_MS,
@@ -176,7 +177,7 @@ export class SessionManager extends EventEmitter {
       this.setState('gated')
       return { ok: true }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = errorText(err)
       await this.stop('error', message)
       return { ok: false, error: message }
     }
@@ -251,7 +252,7 @@ export class SessionManager extends EventEmitter {
     // hâm nóng kết nối (thường đã đóng sau PAUSE_DISCONNECT_MS) để câu đầu tiên không bị trễ
     void this.ensureConnected()
       .then(() => this.setActiveState())
-      .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
+      .catch((err) => this.scheduleReconnect(errorText(err)))
   }
 
   private gateMode(): 'vad' | 'ptt' {
@@ -427,7 +428,7 @@ export class SessionManager extends EventEmitter {
       await this.ensureConnected()
       this.setActiveState()
     } catch (err) {
-      this.scheduleReconnect(err instanceof Error ? err.message : String(err))
+      this.scheduleReconnect(errorText(err))
     }
   }
 
@@ -446,7 +447,7 @@ export class SessionManager extends EventEmitter {
       this.reconnects += 1
       void this.ensureConnected()
         .then(() => this.setActiveState())
-        .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
+        .catch((err) => this.scheduleReconnect(errorText(err)))
       return
     }
 
@@ -460,7 +461,7 @@ export class SessionManager extends EventEmitter {
       this.reconnects += 1
       void this.ensureConnected()
         .then(() => this.setActiveState())
-        .catch((err) => this.scheduleReconnect(err instanceof Error ? err.message : String(err)))
+        .catch((err) => this.scheduleReconnect(errorText(err)))
       return
     }
 
@@ -488,7 +489,7 @@ export class SessionManager extends EventEmitter {
         .then(() => this.setActiveState())
         .catch((err) => {
           this.backoffMs = Math.min(this.backoffMs * 2, MAX_BACKOFF_MS)
-          this.scheduleReconnect(err instanceof Error ? err.message : String(err))
+          this.scheduleReconnect(errorText(err))
         })
     }, this.backoffMs)
   }
