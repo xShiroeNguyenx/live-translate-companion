@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.5] — 2026-11-12
+
+### Thêm mới
+- **Nói thẳng vào meeting (chiều đi)**: muốn tự nói trực tiếp, không qua dịch, thì không còn phải vào Meet/Zoom đổi micro nữa.
+  - Trên thẻ Chiều đi (tab Dịch) có nút **🎙 Nói thẳng (không dịch)**. Bấm để bật, bấm lần nữa để tắt. Phím tắt toàn cục **Ctrl+Alt+M** dùng được ngay khi đang ở cửa sổ meeting; menu khay hệ thống cũng có mục này.
+  - Khi bật, giọng thật của bạn đi vào thiết bị **📤 Phát vào** (CABLE Input). Meet/Zoom cứ để nguyên micro = `CABLE Output` cho cả lúc dịch lẫn lúc nói thẳng.
+  - **Không tốn tiền**: không gọi Gemini. Lời nói thẳng không được ghi vào transcript.
+  - Đang bật chiều đi thì app **tự tạm dừng dịch** trong lúc nói thẳng, và dịch tiếp khi bạn tắt. Nếu bạn bấm Tiếp tục hoặc Bật chiều đi giữa chừng thì nói thẳng tự tắt. Meeting không bao giờ nghe cùng lúc giọng thật và giọng dịch.
+  - App **từ chối bật** nếu “Phát vào” chưa chọn, không mở được, hoặc không phải mic ảo (micro phát thẳng ra loa thật sẽ gây hú), và nói rõ lý do. Đang nói thẳng mà đổi “Phát vào” sang loa thật thì app tắt ngay.
+  - Rút micro giữa chừng thì nói thẳng tự tắt, nút trở về trạng thái tắt.
+  - Gõ để nói và Phát lại vẫn dùng được trong lúc đang nói thẳng.
+
+### Thay đổi
+- Thiết bị **CABLE In 16ch** của VB-Audio Virtual Cable giờ cũng được nhận là mic ảo (có dấu ✓ trong danh sách “Phát vào”, không còn cảnh báo “không phải mic ảo”).
+
 ## [0.5.4] — 2026-11-12
 
 ### Thêm mới

@@ -201,6 +201,13 @@ export interface AudioInputDeviceInfo {
 }
 
 // Cấu hình chiều đi gửi xuống engine: player CABLE + thiết bị nhận
+// "Nói thẳng": kết quả bật/tắt. error có thể đi kèm ok=true (đã tắt nhưng chưa dịch tiếp được)
+export interface DirectMicResult {
+  ok: boolean
+  on: boolean
+  error?: string
+}
+
 export interface OutgoingConfig {
   enabled: boolean
   deviceId: string

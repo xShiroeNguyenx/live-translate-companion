@@ -132,6 +132,23 @@ export async function prepareEngineCable(
   )) as PlaybackSinkState
 }
 
+// "Nói thẳng": nối micro thật vào player CABLE (đã route bằng prepareEngineCable)
+export async function startEngineDirectMic(win: BrowserWindow, deviceId: string): Promise<void> {
+  const arg = JSON.stringify(deviceId)
+  await win.webContents.executeJavaScript(
+    `window.__startDirectMic ? window.__startDirectMic(${arg}) : Promise.reject(new Error("Engine chưa sẵn sàng"))`,
+    true
+  )
+}
+
+export async function stopEngineDirectMic(win: BrowserWindow): Promise<void> {
+  if (win.isDestroyed()) return
+  await win.webContents.executeJavaScript(
+    'window.__stopDirectMic ? window.__stopDirectMic() : undefined',
+    true
+  )
+}
+
 export async function stopEngineMic(win: BrowserWindow): Promise<void> {
   await win.webContents.executeJavaScript('window.__stopMic ? window.__stopMic() : undefined', true)
 }

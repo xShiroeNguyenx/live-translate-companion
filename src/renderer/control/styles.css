@@ -869,3 +869,18 @@ button.entry-head:hover:not(:disabled) {
   font-weight: 500;
   font-style: italic;
 }
+
+/* ── Chiều đi "Nói thẳng" ── */
+.direct-row .hint {
+  margin: 0;
+}
+
+.direct-btn {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.direct-btn.on {
+  background: #7f1d1d;
+  border-color: #ef4444;
+}

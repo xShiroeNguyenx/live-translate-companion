@@ -1,6 +1,7 @@
 import { Menu, nativeImage, Tray } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
 import {
+  DIRECT_MIC_SHORTCUT,
   INCOMING_PAUSE_SHORTCUT,
   INCOMING_TOGGLE_SHORTCUT,
   OUTGOING_PTT_SHORTCUT
@@ -10,6 +11,7 @@ export interface TrayState {
   incomingRunning: boolean
   incomingPaused: boolean
   outgoingRunning: boolean
+  directMicOn: boolean
   overlayVisible: boolean
 }
 
@@ -18,6 +20,7 @@ export interface TrayActions {
   toggleIncoming(): void
   togglePauseIncoming(): void
   toggleOutgoing(): void
+  toggleDirectMic(): void
   toggleOverlay(): void
   quit(): void
 }
@@ -69,6 +72,14 @@ export class AppTray {
         {
           label: `PTT chiều đi: ${accel(OUTGOING_PTT_SHORTCUT)}`,
           enabled: false
+        },
+        {
+          label: 'Nói thẳng vào meeting (không dịch)',
+          type: 'checkbox',
+          checked: s.directMicOn,
+          accelerator: accel(DIRECT_MIC_SHORTCUT),
+          registerAccelerator: false,
+          click: () => this.actions.toggleDirectMic()
         },
         {
           label: 'Hiện overlay phụ đề',

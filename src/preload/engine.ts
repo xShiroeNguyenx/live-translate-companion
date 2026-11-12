@@ -30,6 +30,7 @@ const api: EngineApi = {
   sendMicCaptureError: (message: string) => ipcRenderer.send('mic:captureError', message),
   sendOutgoingSinkState: (state: PlaybackSinkState) =>
     ipcRenderer.send('outgoing:sinkState', state),
+  sendDirectMicLost: (message: string) => ipcRenderer.send('direct:micLost', message),
   onPlaybackChunk: (cb: (pcm: ArrayBuffer) => void) => subscribe('playback:chunk', cb),
   onPlaybackFlush: (cb: () => void) => subscribe('playback:flush', cb),
   onPlaybackConfig: (cb: (c: PlaybackConfig) => void) => subscribe('playback:config', cb),

@@ -32,6 +32,7 @@ Chạy song song với mọi app họp bằng cách bắt **audio hệ thống**
 - Nói tiếng Việt → dịch thành giọng **Nhật/Anh/Hàn/Trung** rồi phát vào meeting như mic của bạn.
 - Chế độ **Giữ để nói (PTT)** hoặc **tự động (VAD)**; phím tắt toàn cục `Ctrl+Space`.
 - **⌨ Gõ để nói**: gõ tiếng Việt → app dịch và để sẵn bản dịch → bấm **Phát** thì đọc thành giọng vào meeting. Không cần micro.
+- **🎙 Nói thẳng**: một nút (hoặc `Ctrl+Alt+M`) đưa giọng thật của bạn vào meeting, không dịch. Không phải đổi micro trong Meet/Zoom khi muốn nói trực tiếp.
 
 **Chống vọng & định tuyến âm thanh**
 - Đổi thiết bị "Nghe meeting" (mặc định Windows) ngay trong app.
@@ -99,6 +100,14 @@ Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audi
 Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
 
 > Khuyến nghị đeo tai nghe khi bật chiều đi để mic không hút tiếng từ loa (tránh dịch nhầm tiếng meeting bơm ngược).
+
+**Nói thẳng** (muốn tự nói tiếng Anh/Nhật, hoặc nói với đồng nghiệp người Việt): bấm **🎙 Nói thẳng (không dịch)** trên thẻ Chiều đi, hoặc `Ctrl+Alt+M` khi đang ở cửa sổ meeting. Bấm lần nữa để tắt.
+
+- Giọng thật của bạn đi vào **📤 Phát vào** (`CABLE Input`), nên Meet/Zoom cứ để micro = `CABLE Output`, không phải đổi qua lại.
+- Không gọi Gemini, **không tốn tiền**, không ghi vào transcript.
+- Đang bật chiều đi thì app **tạm dừng dịch** trong lúc nói thẳng và dịch tiếp khi bạn tắt. Bấm **Tiếp tục** hoặc **Bật chiều đi** giữa chừng thì nói thẳng tự tắt: meeting không bao giờ nghe cùng lúc giọng thật và giọng dịch.
+- App chỉ bật khi “Phát vào” là mic ảo. Nếu đó là loa thật, micro dội ra loa sẽ gây hú, nên app từ chối và nói rõ lý do.
+- Lúc không bật Nói thẳng và không giữ nút nói, meeting **không nghe thấy bạn**.
 
 **Gõ để nói** (không tiện nói, hoặc muốn soạn trước câu trả lời): trên thẻ Chiều đi bấm **⌨ Gõ**.
 1. Gõ câu tiếng Việt → **Dịch** (hoặc Enter). Bản dịch hiện ở ô dưới, sửa tay được. Chưa có gì phát ra.

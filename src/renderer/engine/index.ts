@@ -1,6 +1,7 @@
 import { errorText, micErrorText } from '../../shared/error-text'
 import type { OutgoingConfig, PlaybackConfig, PlaybackSinkState } from '../../shared/types'
 import { LoopbackCapture } from './capture'
+import { DirectMic } from './direct-mic'
 import { listInputDevices, listOutputDevices } from './devices'
 import { MicCapture } from './mic-capture'
 import { MeetingMonitor } from './monitor'
@@ -13,6 +14,8 @@ declare global {
     __startMic?: (deviceId: string) => Promise<void>
     __stopMic?: () => Promise<void>
     __prepareCable?: (config: OutgoingConfig) => Promise<PlaybackSinkState>
+    __startDirectMic?: (deviceId: string) => Promise<void>
+    __stopDirectMic?: () => void
   }
 }
 
@@ -26,6 +29,8 @@ const monitor = new MeetingMonitor()
 // Chiều đi: micro → dịch → CABLE Input (mic ảo của meeting)
 const micCapture = new MicCapture()
 const cablePlayer = new PcmPlayer()
+// "Nói thẳng": micro thật → cùng player CABLE, không dịch
+const directMic = new DirectMic()
 
 let playbackConfig: PlaybackConfig | null = null
 let sinkState: PlaybackSinkState | null = null
@@ -94,6 +99,18 @@ const applyOutgoing = async (config: OutgoingConfig): Promise<PlaybackSinkState>
 
 // "Gõ để nói": main chờ kết quả route rồi mới gửi audio
 window.__prepareCable = applyOutgoing
+
+window.__startDirectMic = async (deviceId: string): Promise<void> => {
+  try {
+    await directMic.start(deviceId, cablePlayer, (reason) => api.sendDirectMicLost(reason))
+    void pushInputDevices()
+  } catch (err) {
+    // ném Error thật để main nhận được câu nói rõ nguyên nhân (xem __startCapture)
+    throw new Error(micErrorText(err))
+  }
+}
+
+window.__stopDirectMic = (): void => directMic.stop()
 
 const pushOutputDevices = async (): Promise<void> => {
   try {

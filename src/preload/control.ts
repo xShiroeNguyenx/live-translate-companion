@@ -49,6 +49,8 @@ const api: ControlApi = {
   pauseOutgoing: () => ipcRenderer.invoke('outgoing:pause'),
   resumeOutgoing: () => ipcRenderer.invoke('outgoing:resume'),
   removeOutgoingSegment: (id: string) => ipcRenderer.invoke('outgoing:removeSegment', id),
+  setDirectMic: (on: boolean) => ipcRenderer.invoke('outgoing:setDirect', on === true),
+  getDirectMic: () => ipcRenderer.invoke('outgoing:getDirect'),
   translateTyped: (text: string) => ipcRenderer.invoke('typed:translate', text),
   prepareTyped: (text: string) => ipcRenderer.invoke('typed:prepare', text),
   speakTyped: (text: string, source: string, replay?: boolean) =>
@@ -94,6 +96,7 @@ const api: ControlApi = {
   onOutgoingSubtitle: (cb: (u: SubtitleUpdate) => void) => subscribe('outgoing:subtitle', cb),
   onOutgoingSinkState: (cb: (s: PlaybackSinkState) => void) =>
     subscribe('outgoing:sinkStateChanged', cb),
+  onDirectMic: (cb: (on: boolean) => void) => subscribe('outgoing:direct', cb),
   onTypedState: (cb: (s: TypedSpeechState) => void) => subscribe('typed:state', cb),
   onUpdateStatus: (cb: (s: UpdateStatus) => void) => subscribe('update:status', cb),
   onHistoryChanged: (cb: () => void) => subscribe('history:changed', cb),

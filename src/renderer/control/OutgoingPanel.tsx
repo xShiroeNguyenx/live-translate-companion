@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TTS_VOICES } from '../../shared/constants'
+import { DIRECT_MIC_SHORTCUT, TTS_VOICES } from '../../shared/constants'
 import { LANGUAGES, languageShort } from '../../shared/languages'
 import type { OutgoingMode, SubtitleSegment } from '../../shared/types'
 import { useControlStore } from './store'
@@ -13,6 +13,7 @@ const TARGET_OPTIONS = LANGUAGES.filter((l) => l.code !== 'vi')
 // cách đưa lời vào chiều đi: nói qua micro, hoặc gõ rồi cho máy đọc
 type InputMode = 'speak' | 'type'
 const INPUT_MODE_KEY = 'outgoingInputMode'
+const DIRECT_HINT = DIRECT_MIC_SHORTCUT.replace('CommandOrControl', 'Ctrl')
 
 function loadInputMode(): InputMode {
   try {
@@ -25,8 +26,16 @@ function loadInputMode(): InputMode {
 // Tab "Dịch": bật/tắt chiều đi, PTT hoặc gõ để nói, transcript
 export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
   const api = window.controlApi
-  const { settings, outgoing, outgoingMetrics, outgoingSegments, outgoingSinkState, typedSpeech } =
-    useControlStore()
+  const {
+    settings,
+    outgoing,
+    outgoingMetrics,
+    outgoingSegments,
+    outgoingSinkState,
+    typedSpeech,
+    directMic
+  } = useControlStore()
+  const [directBusy, setDirectBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [input, setInput] = useState<InputMode>(loadInputMode)
@@ -93,6 +102,20 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
     }
   }
 
+  // nói thẳng: giọng thật vào mic ảo, không dịch. Bật thì main tự tạm dừng phiên dịch chiều đi.
+  const toggleDirect = async (): Promise<void> => {
+    setDirectBusy(true)
+    setError(null)
+    try {
+      const r = await api.setDirectMic(!directMic)
+      if (r.error) setError(r.error)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setDirectBusy(false)
+    }
+  }
+
   const press = (active: boolean): void => {
     if (running && !paused && isPtt) void api.setPushToTalk(active)
   }
@@ -128,6 +151,24 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
           Đang phát ra “{sinkLabel}” — không phải mic ảo, cả phòng sẽ nghe thấy.
         </Warn>
       )}
+
+      <div className="row direct-row">
+        <button
+          className={`direct-btn ${directMic ? 'on' : ''}`}
+          onClick={() => void toggleDirect()}
+          disabled={directBusy}
+          title={`Đưa giọng thật của bạn vào meeting qua “Phát vào”, không dịch và không tốn tiền. Meet/Zoom cứ để micro = CABLE Output. Phím tắt ${DIRECT_HINT}.`}
+        >
+          {directMic ? '🔴 Đang nói thẳng · bấm để tắt' : '🎙 Nói thẳng (không dịch)'}
+        </button>
+        <span className="hint">
+          {directMic
+            ? paused
+              ? 'Meeting đang nghe giọng thật của bạn. Chiều đi tạm dừng dịch.'
+              : 'Meeting đang nghe giọng thật của bạn.'
+            : `${DIRECT_HINT} · không cần đổi micro trong Meet/Zoom`}
+        </span>
+      </div>
 
       {/* đang gõ mà phiên micro vẫn chạy → vẫn hiện hàng này để tắt được */}
       {(!typing || running) && (

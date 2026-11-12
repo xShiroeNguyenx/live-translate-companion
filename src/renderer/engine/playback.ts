@@ -69,6 +69,15 @@ export class PcmPlayer {
     source.onended = () => this.sources.delete(source)
   }
 
+  // "Nói thẳng": nối một luồng sống (micro) vào cùng đường ra với giọng dịch — đi qua gain,
+  // nên player bị tắt (enabled = false) thì luồng này cũng câm. Trả về hàm ngắt.
+  attachStream(stream: MediaStream): () => void {
+    const source = this.ctx.createMediaStreamSource(stream)
+    source.connect(this.gain)
+    if (this.ctx.state === 'suspended') void this.ctx.resume().catch(() => undefined)
+    return () => source.disconnect()
+  }
+
   flush(): void {
     for (const source of this.sources) {
       try {

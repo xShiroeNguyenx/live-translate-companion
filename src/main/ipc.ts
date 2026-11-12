@@ -18,6 +18,7 @@ import type { AssistantService } from './assistant/assistant-service'
 import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
 import type { MeetingTitleTracker } from './history/meeting-title-tracker'
+import type { DirectMicController } from './outgoing/direct-mic'
 import type { TypedSpeechService } from './outgoing/typed-speech'
 import type { SummaryService } from './summary/summary-service'
 import type { SessionManager } from './gemini/session-manager'
@@ -47,6 +48,7 @@ export interface IpcContext {
   assistant: AssistantService
   typedSpeech: TypedSpeechService
   removeOutgoingSegment(id: unknown): boolean
+  directMic: DirectMicController
   usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
@@ -80,6 +82,8 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle(IPC.outgoingResume, () => ctx.resumeOutgoing())
 
   ipcMain.handle(IPC.outgoingRemoveSegment, (_e, id: unknown) => ctx.removeOutgoingSegment(id))
+  ipcMain.handle(IPC.outgoingSetDirect, (_e, on: unknown) => ctx.directMic.set(on))
+  ipcMain.handle(IPC.outgoingGetDirect, () => ctx.directMic.isOn())
   ipcMain.handle(IPC.typedTranslate, (_e, text: unknown) => ctx.typedSpeech.translate(text))
   ipcMain.handle(IPC.typedPrepare, (_e, text: unknown) => ctx.typedSpeech.prepare(text))
   ipcMain.handle(IPC.typedSpeak, (_e, text: unknown, source: unknown, replay: unknown) =>
@@ -192,6 +196,11 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.on(IPC.micChunk, (_e, pcm: ArrayBuffer, rmsDb: number, ts: number) => {
     ctx.outgoing.handleFrame(pcm, rmsDb, ts)
+  })
+
+  ipcMain.on(IPC.directMicLost, (_e, message: string) => {
+    console.error('Mic nói thẳng mất tín hiệu:', message)
+    ctx.directMic.onMicLost()
   })
 
   ipcMain.on(IPC.micCaptureError, (_e, message: string) => {

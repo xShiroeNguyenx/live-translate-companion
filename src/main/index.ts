@@ -4,6 +4,7 @@ import {
   BUDGET_WARN_RATIO,
   INCOMING_PAUSE_SHORTCUT,
   INCOMING_TOGGLE_SHORTCUT,
+  DIRECT_MIC_SHORTCUT,
   OUTGOING_PTT_SHORTCUT,
   OVERLAY_TOGGLE_SHORTCUT,
   SUMMARY_MIN_CHARS,
@@ -30,6 +31,8 @@ import { HistoryStore } from './history/history-store'
 import { MeetingTitleTracker } from './history/meeting-title-tracker'
 import { registerIpc } from './ipc'
 import { KeywordNotifier } from './keyword-notifier'
+import { isVirtualCable } from '../shared/virtual-cable'
+import { DirectMicController } from './outgoing/direct-mic'
 import { TypedSpeechService } from './outgoing/typed-speech'
 import { getApiKey } from './secrets'
 import { SettingsStore } from './settings'
@@ -52,8 +55,10 @@ import {
   installLoopbackHandler,
   prepareEngineCable,
   startEngineCapture,
+  startEngineDirectMic,
   startEngineMic,
   stopEngineCapture,
+  stopEngineDirectMic,
   stopEngineMic
 } from './windows'
 
@@ -415,12 +420,42 @@ if (gotLock) {
       if (!result.ok) notify('Không bắt đầu được', result.error ?? 'Lỗi không rõ')
     }
 
+    // ── Chiều đi "Nói thẳng": giọng thật (không dịch) vào thiết bị "Phát vào" ──
+    // Tạo trước tray vì tray đọc trạng thái này ngay lúc dựng menu; các deps chỉ chạy khi được gọi.
+    const directMic = new DirectMicController({
+      getSettings: () => settings.get(),
+      prepareSink: () => {
+        lastOutgoingEnabled = true
+        return prepareEngineCable(engine, outgoingConfig(settings.get()))
+      },
+      startMic: (deviceId) => startEngineDirectMic(engine, deviceId),
+      stopMic: () => stopEngineDirectMic(engine),
+      release: () => sendOutgoingConfigIfChanged(),
+      isTranslating: () => outgoing.isStarted() && !outgoing.isPaused(),
+      isTranslationPaused: () => outgoing.isStarted() && outgoing.isPaused(),
+      pauseTranslation: () => outgoing.pause(),
+      resumeTranslation: () => resumeOutgoing()
+    })
+    directMic.on('state', (on: boolean) => {
+      sendToControl(IPC.evOutgoingDirect, on)
+      tray.refresh()
+    })
+    // tray + phím tắt: thường bấm khi đang ở cửa sổ meeting → báo bằng notification
+    const toggleDirectMic = async (): Promise<void> => {
+      const r = await directMic.toggle()
+      const key = DIRECT_MIC_SHORTCUT.replace('CommandOrControl', 'Ctrl')
+      if (!r.ok) notify('Không bật được Nói thẳng', r.error ?? 'Lỗi không rõ')
+      else if (r.on) notify('🎙 Đang nói thẳng vào meeting', `Giọng thật, không dịch. Nhấn ${key} để tắt.`)
+      else notify('Đã tắt Nói thẳng', r.error ?? 'Meeting không còn nghe micro của bạn.')
+    }
+
     // ── Tray ──
     const tray = new AppTray(
       () => ({
         incomingRunning: sessions.isStarted(),
         incomingPaused: sessions.isPaused(),
         outgoingRunning: outgoing.isStarted(),
+        directMicOn: directMic.isOn(),
         overlayVisible: settings.get().overlayVisible
       }),
       {
@@ -428,6 +463,7 @@ if (gotLock) {
         toggleIncoming: () => void toggle(sessions, startIncoming),
         togglePauseIncoming,
         toggleOutgoing: () => void toggle(outgoing, startOutgoing),
+        toggleDirectMic: () => void toggleDirectMic(),
         toggleOverlay: () => {
           settings.set({ overlayVisible: !settings.get().overlayVisible })
         },
@@ -488,8 +524,10 @@ if (gotLock) {
       })
     }
 
-    // CABLE player chỉ phát khi phiên chiều đi đang chạy, hoặc "Gõ để nói" đang phát một câu
-    const cableEnabled = (): boolean => outgoing.isStarted() || typedSpeech.isPlaying()
+    // CABLE player chỉ phát khi phiên chiều đi đang chạy, "Gõ để nói" đang phát một câu,
+    // hoặc đang "Nói thẳng"
+    const cableEnabled = (): boolean =>
+      outgoing.isStarted() || typedSpeech.isPlaying() || directMic.isOn()
     const outgoingConfig = (s: AppSettings): OutgoingConfig => ({
       enabled: cableEnabled(),
       deviceId: s.outgoingDeviceId,
@@ -568,6 +606,8 @@ if (gotLock) {
         outgoingSaver.flush()
         usage.flush()
       }
+      // dịch chạy (lại) trong lúc đang nói thẳng → tắt nói thẳng, không để cả hai cùng vào meeting
+      if (outgoing.isStarted() && !outgoing.isPaused()) directMic.onTranslationActive()
       sendOutgoingConfigIfChanged()
       syncPttShortcut()
       tray.refresh()
@@ -578,6 +618,8 @@ if (gotLock) {
     })
 
     settings.on('change', (s: AppSettings) => {
+      // đang nói thẳng mà "Phát vào" bị đổi sang loa thật → tắt ngay, nếu không micro dội ra loa gây hú
+      if (directMic.isOn() && !isVirtualCable(s.outgoingDeviceLabel)) void directMic.set(false)
       broadcast(IPC.evSettingsChanged, s)
       applyOverlaySettings(s)
       sendPlaybackConfig(s)
@@ -622,6 +664,7 @@ if (gotLock) {
       assistant,
       typedSpeech,
       removeOutgoingSegment,
+      directMic,
       meetingTitle,
       setMeetingTitle,
       renameHistory,
@@ -636,6 +679,9 @@ if (gotLock) {
     })
     if (!globalShortcut.register(INCOMING_TOGGLE_SHORTCUT, () => void toggle(sessions, startIncoming))) {
       console.warn('Không đăng ký được phím bật/tắt chiều về (có thể bị app khác chiếm)')
+    }
+    if (!globalShortcut.register(DIRECT_MIC_SHORTCUT, () => void toggleDirectMic())) {
+      console.warn('Không đăng ký được phím Nói thẳng (có thể bị app khác chiếm)')
     }
     if (!globalShortcut.register(INCOMING_PAUSE_SHORTCUT, togglePauseIncoming)) {
       console.warn('Không đăng ký được phím tạm dừng chiều về (có thể bị app khác chiếm)')

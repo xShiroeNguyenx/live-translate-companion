@@ -42,11 +42,7 @@ export function isDefaultDevice(deviceId: string): boolean {
   return deviceId === '' || deviceId === 'default' || deviceId === 'communications'
 }
 
-const VIRTUAL_MIC_RE = /CABLE Input/i
-
-export function isVirtualCable(label: string): boolean {
-  return VIRTUAL_MIC_RE.test(label)
-}
+export { isVirtualCable } from '../../shared/virtual-cable'
 
 // RMS dBFS → % cho thanh đo (−80..−20 dB ≈ 0..100%)
 export function dbToMeterPercent(db: number): number {

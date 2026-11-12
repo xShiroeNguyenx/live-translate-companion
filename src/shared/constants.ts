@@ -82,6 +82,8 @@ export const HISTORY_ASK_MAX_TRANSCRIPT_CHARS = 400_000
 export const OUTGOING_DEFAULT_TARGET = 'ja'
 export const OUTGOING_PTT_SHORTCUT = 'CommandOrControl+Space'
 export const VIRTUAL_MIC_HINT = 'CABLE Input'
+// bật/tắt "Nói thẳng" (giọng thật, không dịch, vào mic ảo) từ bất cứ đâu
+export const DIRECT_MIC_SHORTCUT = 'CommandOrControl+Alt+M'
 
 // ── Chiều đi "Gõ để nói": gõ tiếng Việt → Flash-lite dịch → model TTS đọc thành giọng vào meeting ──
 // Tên model, định dạng audio (WAV 24 kHz mono 16-bit) và giá theo ai.google.dev/gemini-api/docs

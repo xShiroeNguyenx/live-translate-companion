@@ -105,6 +105,8 @@ interface ControlState {
   outgoingSinkState: PlaybackSinkState | null
   // "Gõ để nói": trạng thái phát + bản nháp (giữ ở store để đổi tab không mất chữ đang gõ)
   typedSpeech: TypedSpeechState
+  // "Nói thẳng": giọng thật đang đi vào mic ảo (main là nguồn sự thật)
+  directMic: boolean
   typedDraft: TypedDraft
   setTypedDraft(patch: Partial<TypedDraft>): void
   appVersion: string
@@ -173,6 +175,7 @@ export const useControlStore = create<ControlState>((set, get) => ({
   outgoingSegments: [],
   outgoingSinkState: null,
   typedSpeech: 'idle',
+  directMic: false,
   typedDraft: { source: '', translation: '', translatedFrom: '' },
   setTypedDraft: (patch) => set((s) => ({ typedDraft: { ...s.typedDraft, ...patch } })),
   appVersion: '',
@@ -216,6 +219,8 @@ export const useControlStore = create<ControlState>((set, get) => ({
     api.onOutgoingSinkState((outgoingSinkState) => set({ outgoingSinkState }))
     void api.getTypedState().then((typedSpeech) => set({ typedSpeech }))
     api.onTypedState((typedSpeech) => set({ typedSpeech }))
+    void api.getDirectMic().then((directMic) => set({ directMic }))
+    api.onDirectMic((directMic) => set({ directMic }))
     api.onUpdateStatus((update) => set({ update }))
     void api.getUsage().then((usage) => set({ usage }))
     api.onUsage((usage) => set({ usage }))

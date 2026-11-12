@@ -1,6 +1,6 @@
 # Lộ trình
 
-Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.4**) tới **1.0**.
+Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.5**) tới **1.0**.
 Thứ tự có thể đổi theo phản hồi của người dùng. Bạn có ý tưởng hoặc gặp lỗi thì mở
 [issue trên GitHub](https://github.com/xShiroeNguyenx/live-translate-companion/issues).
 
@@ -37,9 +37,11 @@ Trước khi thêm tính năng, cần chắc những gì đã có chạy đúng 
   - các cảnh báo định tuyến âm thanh có đúng và dễ hiểu không;
   - chế độ **Chỉ chữ** trong cuộc họp tiếng Nhật thật, chạy quá 10 phút (phiên chép lời tự xoay);
   - **Gõ để nói** trong một cuộc họp 2 tài khoản: bên kia nghe rõ giọng đọc, không bị cắt đầu/cuối câu.
+  - **Nói thẳng** trong một cuộc họp 2 tài khoản: bên kia nghe rõ giọng thật, không vọng, và không nghe lẫn giọng dịch.
 - ✅ **Chế độ "Chỉ chữ"** cho chiều về (0.5.2): chép lời + dịch từng câu, rẻ hơn khoảng 3,5 lần khi không cần nghe giọng dịch.
 - ✅ **Hỏi đáp trên một phiên đã lưu** trong tab Lịch sử (0.5.2), làm sớm hơn dự kiến theo yêu cầu.
 - ✅ **Gõ để nói** cho chiều đi (0.5.3): gõ tiếng Việt, app dịch rồi đọc thành giọng vào meeting khi bạn bấm Phát. Từ 0.5.4 phát lại và xoá được từng câu.
+- ✅ **Nói thẳng** (0.5.5): một nút hoặc `Ctrl+Alt+M` đưa giọng thật vào meeting, không phải đổi micro trong Meet/Zoom mỗi lần muốn nói trực tiếp.
 - **Ghi log ra file**, kèm nút "Mở thư mục log" trong Cài đặt. Bản cài hiện chưa lưu lỗi ở đâu cả. **(S)**
 - **Nút "Copy thông tin chẩn đoán"**: phiên bản, model, thiết bị đã chọn, trạng thái âm thanh và đoạn log cuối, để dán vào issue khi báo lỗi. Không bao giờ chứa API key. **(S)**
 

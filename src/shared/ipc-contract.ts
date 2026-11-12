@@ -5,6 +5,7 @@ import type {
   AssistantReplyResult,
   AudioInputDeviceInfo,
   AudioOutputDeviceInfo,
+  DirectMicResult,
   ExportFormat,
   HistoryEntry,
   HistoryRecord,
@@ -47,6 +48,8 @@ export const IPC = {
   outgoingPause: 'outgoing:pause',
   outgoingResume: 'outgoing:resume',
   outgoingRemoveSegment: 'outgoing:removeSegment',
+  outgoingSetDirect: 'outgoing:setDirect',
+  outgoingGetDirect: 'outgoing:getDirect',
   typedTranslate: 'typed:translate',
   typedPrepare: 'typed:prepare',
   typedSpeak: 'typed:speak',
@@ -92,6 +95,7 @@ export const IPC = {
   evMicPlaybackChunk: 'mic:playbackChunk',
   evMicPlaybackFlush: 'mic:playbackFlush',
   evOutgoingConfig: 'outgoing:config',
+  evOutgoingDirect: 'outgoing:direct',
   evTypedState: 'typed:state',
   evUpdateStatus: 'update:status',
   evHistoryChanged: 'history:changed',
@@ -106,7 +110,8 @@ export const IPC = {
   playbackSinkState: 'playback:sinkState',
   micChunk: 'mic:chunk',
   micCaptureError: 'mic:captureError',
-  outgoingSinkState: 'outgoing:sinkState'
+  outgoingSinkState: 'outgoing:sinkState',
+  directMicLost: 'direct:micLost'
 } as const
 
 export interface ListLiveModelsResult {
@@ -140,6 +145,9 @@ export interface ControlApi {
   resumeOutgoing(): Promise<{ ok: boolean; error?: string }>
   // xoá 1 câu khỏi transcript chiều đi (cả file tự lưu và lịch sử); false = không có câu này
   removeOutgoingSegment(id: string): Promise<boolean>
+  // "Nói thẳng": đưa giọng thật (không dịch) vào thiết bị "Phát vào"; bật thì phiên dịch chiều đi tạm dừng
+  setDirectMic(on: boolean): Promise<DirectMicResult>
+  getDirectMic(): Promise<boolean>
   // "Gõ để nói": dịch câu gõ sang ngôn ngữ đích chiều đi (chưa phát)
   translateTyped(text: string): Promise<TypedTranslateResult>
   // tạo sẵn giọng cho `text` (chưa phát) để lúc bấm Phát ra tiếng ngay
@@ -189,6 +197,7 @@ export interface ControlApi {
   onOutgoingMetrics(cb: (m: Metrics) => void): () => void
   onOutgoingSubtitle(cb: (u: SubtitleUpdate) => void): () => void
   onOutgoingSinkState(cb: (s: PlaybackSinkState) => void): () => void
+  onDirectMic(cb: (on: boolean) => void): () => void
   onTypedState(cb: (s: TypedSpeechState) => void): () => void
   onUpdateStatus(cb: (s: UpdateStatus) => void): () => void
   onHistoryChanged(cb: () => void): () => void
@@ -214,6 +223,8 @@ export interface EngineApi {
   sendMicChunk(pcm: ArrayBuffer, rmsDb: number, ts: number): void
   sendMicCaptureError(message: string): void
   sendOutgoingSinkState(state: PlaybackSinkState): void
+  // micro của "Nói thẳng" bị rút / thu hồi giữa chừng
+  sendDirectMicLost(message: string): void
   onPlaybackChunk(cb: (pcm: ArrayBuffer) => void): () => void
   onPlaybackFlush(cb: () => void): () => void
   onPlaybackConfig(cb: (c: PlaybackConfig) => void): () => void
