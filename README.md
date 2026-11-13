@@ -97,11 +97,13 @@ Cần VB-Cable. Trong **Meet/Zoom** chọn **Microphone = `CABLE Output (VB-Audi
 - 🎙 **Micro** → micro thật · 📤 **Phát vào** → `CABLE Input` (✓ mic ảo)
 - Chọn ngôn ngữ đích + chế độ PTT
 
-Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
+Quay lại tab **Dịch**. Thẻ Chiều đi có 3 cách nói, chọn một: **🎤 Nói có dịch**, **⌨ Gõ để nói**, **🎙 Nói thẳng**. Dòng **Vào meeting: …** ở góc thẻ cho biết meeting đang nghe gì từ bạn.
+
+**Nói có dịch**: bấm **▶ Bật dịch giọng nói** → giữ nút **🎤 Giữ để nói** (hoặc `Ctrl+Space`).
 
 > Khuyến nghị đeo tai nghe khi bật chiều đi để mic không hút tiếng từ loa (tránh dịch nhầm tiếng meeting bơm ngược).
 
-**Nói thẳng** (muốn tự nói tiếng Anh/Nhật, hoặc nói với đồng nghiệp người Việt): bấm **🎙 Nói thẳng (không dịch)** trên thẻ Chiều đi, hoặc `Ctrl+Alt+M` khi đang ở cửa sổ meeting. Bấm lần nữa để tắt.
+**Nói thẳng** (muốn tự nói tiếng Anh/Nhật, hoặc nói với đồng nghiệp người Việt): trên thẻ Chiều đi chọn **🎙 Nói thẳng** rồi bấm **Bật micro nói thẳng**, hoặc nhấn `Ctrl+Alt+M` khi đang ở cửa sổ meeting. Bấm lần nữa để tắt.
 
 - Giọng thật của bạn đi vào **📤 Phát vào** (`CABLE Input`), nên Meet/Zoom cứ để micro = `CABLE Output`, không phải đổi qua lại.
 - Không gọi Gemini, **không tốn tiền**, không ghi vào transcript.
@@ -109,11 +111,11 @@ Quay lại tab **Dịch** → **Bật chiều đi** → giữ nút **🎤 Giữ 
 - App chỉ bật khi “Phát vào” là mic ảo. Nếu đó là loa thật, micro dội ra loa sẽ gây hú, nên app từ chối và nói rõ lý do.
 - Lúc không bật Nói thẳng và không giữ nút nói, meeting **không nghe thấy bạn**.
 
-**Gõ để nói** (không tiện nói, hoặc muốn soạn trước câu trả lời): trên thẻ Chiều đi bấm **⌨ Gõ**.
+**Gõ để nói** (không tiện nói, hoặc muốn soạn trước câu trả lời): trên thẻ Chiều đi chọn **⌨ Gõ để nói**.
 1. Gõ câu tiếng Việt → **Dịch** (hoặc Enter). Bản dịch hiện ở ô dưới, sửa tay được. Chưa có gì phát ra.
 2. Tới lượt mình nói thì bấm **▶ Phát** (hoặc Ctrl+Enter). Giọng đi vào **📤 Phát vào** (`CABLE Input`). **■ Dừng** để cắt giữa chừng.
 
-- Không cần bấm **Bật chiều đi**; chỉ cần đã chọn thiết bị **📤 Phát vào**.
+- Không cần bật dịch giọng nói; chỉ cần đã chọn thiết bị **📤 Phát vào**.
 - App chuẩn bị giọng sẵn ngay sau khi dịch nên bấm Phát là ra tiếng liền. Sửa bản dịch thì lần Phát đó chờ thêm vài giây.
 - Chọn giọng ở **Cài đặt → Chiều đi → 🗣 Giọng đọc**. Chi phí khoảng $0.03 cho mỗi phút giọng (`gemini-3.8-flash-tts`), tính vào chi phí tháng.
 - Câu đã phát được ghi vào transcript chiều đi như lời nói qua micro. Mỗi câu có nút **🔁 Phát lại**: 30 câu gần nhất phát lại không tốn thêm tiền (tới khi tắt app hoặc đổi giọng).
@@ -217,6 +219,7 @@ Vài phút sau, installer xuất hiện ở trang Releases. Lịch sử thay đ�
 
 ## Sự cố thường gặp
 
+- **Muốn báo lỗi**: vào **Cài đặt → Khác**, bấm **📋 Copy thông tin chẩn đoán** rồi dán vào [issue](https://github.com/xShiroeNguyenx/live-translate-companion/issues). Bản này gồm phiên bản, model, thiết bị âm thanh, trạng thái hai chiều và 80 dòng log cuối; **không có** API key, nội dung cuộc họp hay ngữ cảnh. Muốn xem toàn bộ log thì bấm **📂 Mở thư mục log** (file `app.log`, chỉ nằm trên máy bạn).
 - **App thoát ngay với lỗi `Cannot read properties of undefined (reading 'requestSingleInstanceLock')`**: terminal có biến `ELECTRON_RUN_AS_NODE=1` (hay gặp khi spawn từ extension host VSCode) khiến Electron chạy như Node thuần. Xoá rồi chạy lại: `Remove-Item Env:\ELECTRON_RUN_AS_NODE`.
 - **Phụ đề dịch nội dung lạ**: loopback thu *mọi* âm thanh hệ thống (notification, nhạc) — tắt app khác khi họp, hoặc tăng ngưỡng VAD.
 - **Chọn thiết bị giọng dịch nhưng vẫn bị vọng**: chọn lại thiết bị một lần để app lưu đúng id mới (sau khi nâng cấp từ bản cũ).

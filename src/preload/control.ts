@@ -81,6 +81,8 @@ const api: ControlApi = {
     ipcRenderer.invoke('history:ask', id, question, previous),
   suggestReplies: () => ipcRenderer.invoke('assistant:replies'),
   copyText: (text: string) => ipcRenderer.invoke('clipboard:write', text),
+  openLogDir: () => ipcRenderer.invoke('logs:openDir'),
+  copyDiagnostics: () => ipcRenderer.invoke('diagnostics:copy'),
   onSessionState: (cb: (s: SessionStateInfo) => void) => subscribe('session:state', cb),
   onSubtitleUpdate: (cb: (u: SubtitleUpdate) => void) => subscribe('subtitle:update', cb),
   onMetrics: (cb: (m: Metrics) => void) => subscribe('metrics:update', cb),

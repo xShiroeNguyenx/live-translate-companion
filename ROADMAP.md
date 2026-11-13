@@ -1,6 +1,6 @@
 # Lộ trình
 
-Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.5**) tới **1.0**.
+Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.6**) tới **1.0**.
 Thứ tự có thể đổi theo phản hồi của người dùng. Bạn có ý tưởng hoặc gặp lỗi thì mở
 [issue trên GitHub](https://github.com/xShiroeNguyenx/live-translate-companion/issues).
 
@@ -42,8 +42,8 @@ Trước khi thêm tính năng, cần chắc những gì đã có chạy đúng 
 - ✅ **Hỏi đáp trên một phiên đã lưu** trong tab Lịch sử (0.5.2), làm sớm hơn dự kiến theo yêu cầu.
 - ✅ **Gõ để nói** cho chiều đi (0.5.3): gõ tiếng Việt, app dịch rồi đọc thành giọng vào meeting khi bạn bấm Phát. Từ 0.5.4 phát lại và xoá được từng câu.
 - ✅ **Nói thẳng** (0.5.5): một nút hoặc `Ctrl+Alt+M` đưa giọng thật vào meeting, không phải đổi micro trong Meet/Zoom mỗi lần muốn nói trực tiếp.
-- **Ghi log ra file**, kèm nút "Mở thư mục log" trong Cài đặt. Bản cài hiện chưa lưu lỗi ở đâu cả. **(S)**
-- **Nút "Copy thông tin chẩn đoán"**: phiên bản, model, thiết bị đã chọn, trạng thái âm thanh và đoạn log cuối, để dán vào issue khi báo lỗi. Không bao giờ chứa API key. **(S)**
+- ✅ **Ghi log ra file** (0.5.6), kèm nút "Mở thư mục log" trong Cài đặt → Khác.
+- ✅ **Nút "Copy thông tin chẩn đoán"** (0.5.6): phiên bản, model, thiết bị đã chọn, trạng thái âm thanh và đoạn log cuối, để dán vào issue khi báo lỗi. Không bao giờ chứa API key.
 
 ## 0.6 — Thiết lập âm thanh dễ hơn
 

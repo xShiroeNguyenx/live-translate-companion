@@ -1,5 +1,6 @@
 import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { homedir, release } from 'node:os'
 import { IPC, type ListLiveModelsResult } from '../shared/ipc-contract'
 import type { Updater } from './updater'
 import type {
@@ -18,6 +19,8 @@ import type { AssistantService } from './assistant/assistant-service'
 import type { DebugRecorder } from './debug-recorder'
 import type { HistoryStore } from './history/history-store'
 import type { MeetingTitleTracker } from './history/meeting-title-tracker'
+import { buildDiagnostics, DIAGNOSTICS_LOG_LINES } from './logging/diagnostics'
+import type { FileLogger } from './logging/file-logger'
 import type { DirectMicController } from './outgoing/direct-mic'
 import type { TypedSpeechService } from './outgoing/typed-speech'
 import type { SummaryService } from './summary/summary-service'
@@ -49,6 +52,7 @@ export interface IpcContext {
   typedSpeech: TypedSpeechService
   removeOutgoingSegment(id: unknown): boolean
   directMic: DirectMicController
+  logger: FileLogger
   usageSummary(): UsageSummary
   debug: DebugRecorder
   updater: Updater
@@ -258,7 +262,50 @@ export function registerIpc(ctx: IpcContext): void {
     return { ok: true }
   })
 
+  // trạng thái route gần nhất của 2 player — cho bản chẩn đoán
+  let lastPlaybackSink: PlaybackSinkState | null = null
+  let lastOutgoingSink: PlaybackSinkState | null = null
+
+  ipcMain.handle(IPC.logsOpenDir, async () => {
+    mkdirSync(ctx.logger.dir, { recursive: true })
+    await shell.openPath(ctx.logger.dir)
+  })
+
+  ipcMain.handle(IPC.diagnosticsCopy, () => {
+    try {
+      const text = buildDiagnostics({
+        now: new Date(),
+        appVersion: app.getVersion(),
+        os: `Windows ${release()} (${process.arch})`,
+        versions: process.versions,
+        hasApiKey: hasApiKey(),
+        settings: ctx.settings.get(),
+        incoming: ctx.sessions.getStateInfo(),
+        outgoing: ctx.outgoing.getStateInfo(),
+        playbackSink: lastPlaybackSink,
+        outgoingSink: lastOutgoingSink,
+        directMic: ctx.directMic.isOn(),
+        typedSpeech: ctx.typedSpeech.getState(),
+        outputDevices: outputDevices.map((d) => d.label),
+        inputDevices: inputDevices.map((d) => d.label),
+        usage: ctx.usageSummary(),
+        homeDir: homedir(),
+        logLines: ctx.logger.tail(DIAGNOSTICS_LOG_LINES)
+      })
+      clipboard.writeText(text)
+      // clipboard.writeText không báo lỗi khi thất bại → đọc lại để chắc đã chép được
+      if (clipboard.readText().length === 0) {
+        return { ok: false, error: 'Windows không cho ghi clipboard lúc này, thử lại.' }
+      }
+      return { ok: true }
+    } catch (err) {
+      console.error('Không tạo được thông tin chẩn đoán:', err)
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.on(IPC.playbackSinkState, (_e, state: PlaybackSinkState) => {
+    lastPlaybackSink = state
     // engine resolve sink theo label (id lưu trữ đã hỏng vì salt đổi) → ghi lại id mới.
     // Vòng settings→engine→sinkState dừng lại vì lần sau id/label đã khớp.
     const current = ctx.settings.get()
@@ -276,6 +323,7 @@ export function registerIpc(ctx: IpcContext): void {
   })
 
   ipcMain.on(IPC.outgoingSinkState, (_e, state: PlaybackSinkState) => {
+    lastOutgoingSink = state
     // tìm lại CABLE Input theo label khi id đã hỏng — ghi id mới để lần sau khớp ngay
     const current = ctx.settings.get()
     if (

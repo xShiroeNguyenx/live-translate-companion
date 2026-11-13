@@ -76,6 +76,8 @@ export const IPC = {
   assistantAsk: 'assistant:ask',
   assistantReplies: 'assistant:replies',
   clipboardWrite: 'clipboard:write',
+  logsOpenDir: 'logs:openDir',
+  diagnosticsCopy: 'diagnostics:copy',
 
   evSessionState: 'session:state',
   evSubtitleUpdate: 'subtitle:update',
@@ -186,6 +188,10 @@ export interface ControlApi {
   suggestReplies(): Promise<AssistantReplyResult>
   // ghi clipboard qua main (renderer bị chặn quyền clipboard)
   copyText(text: string): Promise<void>
+  // mở thư mục chứa file log của app
+  openLogDir(): Promise<void>
+  // chép bản chẩn đoán (phiên bản, cấu hình, trạng thái, đoạn log cuối — không có API key) vào clipboard
+  copyDiagnostics(): Promise<{ ok: boolean; error?: string }>
   onSessionState(cb: (s: SessionStateInfo) => void): () => void
   onSubtitleUpdate(cb: (u: SubtitleUpdate) => void): () => void
   onMetrics(cb: (m: Metrics) => void): () => void

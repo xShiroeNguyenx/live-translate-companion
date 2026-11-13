@@ -108,6 +108,19 @@ export function SettingsPanel({
     }
   }
 
+  const copyDiagnostics = async (): Promise<void> => {
+    try {
+      const r = await api.copyDiagnostics()
+      notify(
+        r.ok
+          ? 'Đã chép thông tin chẩn đoán. Dán vào issue khi báo lỗi (không chứa API key hay nội dung cuộc họp).'
+          : `Không chép được thông tin chẩn đoán: ${r.error ?? 'lỗi không rõ'}`
+      )
+    } catch (err) {
+      notify(`Không chép được thông tin chẩn đoán: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   const saveLiveModel = (input: string): void => {
     const value = normalizeLiveModel(input).replace(/^models\//, '')
     setLiveModel(value)
@@ -501,6 +514,21 @@ export function SettingsPanel({
           Phím tắt toàn cục: {INCOMING_TOGGLE_SHORTCUT.replace('CommandOrControl', 'Ctrl')} bật/tắt
           chiều về · {INCOMING_PAUSE_SHORTCUT.replace('CommandOrControl', 'Ctrl')} tạm dừng/tiếp
           tục chiều về · Ctrl+Space giữ-để-nói chiều đi · Ctrl+Shift+O khoá overlay.
+        </p>
+        <div className="row wrap">
+          <button
+            onClick={() => void copyDiagnostics()}
+            title="Phiên bản, model, thiết bị đã chọn, trạng thái âm thanh và đoạn log cuối. Không chứa API key, ngữ cảnh hay nội dung cuộc họp."
+          >
+            📋 Copy thông tin chẩn đoán
+          </button>
+          <button onClick={() => void api.openLogDir()} title="File app.log ghi lỗi và cảnh báo của app">
+            📂 Mở thư mục log
+          </button>
+        </div>
+        <p className="hint">
+          Gặp lỗi thì bấm Copy thông tin chẩn đoán rồi dán vào issue. App ghi lỗi vào file log trên
+          máy bạn (tối đa khoảng 2 MB), không gửi đi đâu.
         </p>
         <div className="row wrap">
           <button onClick={() => void recordDebugWav()} disabled={busy}>

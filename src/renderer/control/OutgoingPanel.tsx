@@ -10,14 +10,24 @@ import { LevelMeter, SegmentList, VadSlider, Warn } from './widgets'
 // chiều đi: người dùng nói tiếng Việt → dịch sang ngôn ngữ khác
 const TARGET_OPTIONS = LANGUAGES.filter((l) => l.code !== 'vi')
 
-// cách đưa lời vào chiều đi: nói qua micro, hoặc gõ rồi cho máy đọc
-type InputMode = 'speak' | 'type'
+// chiều đi có 3 cách nói, chọn một: nói qua micro có dịch, gõ rồi cho máy đọc, hoặc nói thẳng không dịch
+type InputMode = 'speak' | 'type' | 'direct'
 const INPUT_MODE_KEY = 'outgoingInputMode'
 const DIRECT_HINT = DIRECT_MIC_SHORTCUT.replace('CommandOrControl', 'Ctrl')
+const MODES: { id: InputMode; label: string; title: string }[] = [
+  { id: 'speak', label: '🎤 Nói có dịch', title: 'Nói tiếng Việt, meeting nghe giọng đã dịch' },
+  { id: 'type', label: '⌨ Gõ để nói', title: 'Gõ chữ, app dịch rồi đọc thành giọng vào meeting' },
+  {
+    id: 'direct',
+    label: '🎙 Nói thẳng',
+    title: 'Meeting nghe giọng thật của bạn, không dịch, không tốn tiền'
+  }
+]
 
 function loadInputMode(): InputMode {
   try {
-    return localStorage.getItem(INPUT_MODE_KEY) === 'type' ? 'type' : 'speak'
+    const saved = localStorage.getItem(INPUT_MODE_KEY)
+    return saved === 'type' || saved === 'direct' ? saved : 'speak'
   } catch {
     return 'speak'
   }
@@ -38,15 +48,14 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
   const [directBusy, setDirectBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [input, setInput] = useState<InputMode>(loadInputMode)
+  const [mode, setMode] = useState<InputMode>(loadInputMode)
 
   if (!api || !settings) return <></>
 
-  const typing = input === 'type'
-  const chooseInput = (mode: InputMode): void => {
-    setInput(mode)
+  const chooseMode = (next: InputMode): void => {
+    setMode(next)
     try {
-      localStorage.setItem(INPUT_MODE_KEY, mode)
+      localStorage.setItem(INPUT_MODE_KEY, next)
     } catch {
       /* không lưu được thì lần sau về mặc định */
     }
@@ -120,23 +129,47 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
     if (running && !paused && isPtt) void api.setPushToTalk(active)
   }
 
+  // một dòng trả lời câu "meeting đang nghe gì từ mình?" (giả định Meet/Zoom dùng micro = CABLE Output)
+  const hear: { text: string; live: boolean } = directMic
+    ? { text: 'giọng thật', live: true }
+    : typedSpeech === 'playing'
+      ? { text: 'giọng đọc', live: true }
+      : talking
+        ? { text: 'giọng dịch', live: true }
+        : running
+          ? { text: STATE_LABELS[outgoing.state].toLowerCase(), live: false }
+          : { text: 'im lặng', live: false }
+
   return (
     <section className="card">
       <div className="card-head">
         <span className="led" style={{ background: STATE_COLORS[outgoing.state] }} />
         <h2>Chiều đi · Tôi → {targetLabel}</h2>
-        <div className="tabs" title="Nói qua micro, hoặc gõ chữ rồi cho máy đọc vào meeting">
-          <button className={typing ? '' : 'active'} onClick={() => chooseInput('speak')}>
-            🎤 Nói
-          </button>
-          <button className={typing ? 'active' : ''} onClick={() => chooseInput('type')}>
-            ⌨ Gõ
-          </button>
-        </div>
-        {(!typing || running) && (
-          <span className="state-label">{STATE_LABELS[outgoing.state]}</span>
-        )}
+        <span
+          className={`hear-chip ${hear.live ? 'live' : ''}`}
+          title="Thứ đang đi vào thiết bị “Phát vào” (mic ảo của meeting)"
+        >
+          Vào meeting: {hear.text}
+        </span>
         {outgoing.usingFallbackClient && <span className="badge">raw-ws</span>}
+      </div>
+
+      {/* chọn MỘT cách nói; mỗi cách chỉ hiện đúng các nút của nó */}
+      <div className="tabs mode-switch">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            className={mode === m.id ? 'active' : ''}
+            title={m.title}
+            onClick={() => chooseMode(m.id)}
+          >
+            {m.label}
+            {/* chấm đỏ: cách này đang chạy dù bạn đang xem tab khác */}
+            {((m.id === 'direct' && directMic) || (m.id === 'speak' && running && !paused)) && (
+              <span className="mode-dot" />
+            )}
+          </button>
+        ))}
       </div>
 
       {error && <div className="alert error">{error}</div>}
@@ -152,77 +185,112 @@ export function OutgoingPanel({ onOpenSettings }: { onOpenSettings: () => void }
         </Warn>
       )}
 
-      <div className="row direct-row">
-        <button
-          className={`direct-btn ${directMic ? 'on' : ''}`}
-          onClick={() => void toggleDirect()}
-          disabled={directBusy}
-          title={`Đưa giọng thật của bạn vào meeting qua “Phát vào”, không dịch và không tốn tiền. Meet/Zoom cứ để micro = CABLE Output. Phím tắt ${DIRECT_HINT}.`}
-        >
-          {directMic ? '🔴 Đang nói thẳng · bấm để tắt' : '🎙 Nói thẳng (không dịch)'}
-        </button>
-        <span className="hint">
-          {directMic
-            ? paused
-              ? 'Meeting đang nghe giọng thật của bạn. Chiều đi tạm dừng dịch.'
-              : 'Meeting đang nghe giọng thật của bạn.'
-            : `${DIRECT_HINT} · không cần đổi micro trong Meet/Zoom`}
-        </span>
-      </div>
-
-      {/* đang gõ mà phiên micro vẫn chạy → vẫn hiện hàng này để tắt được */}
-      {(!typing || running) && (
-      <div className="row">
-        <button
-          className={running ? 'btn-stop' : 'btn-start'}
-          onClick={() => void toggle()}
-          disabled={busy}
-        >
-          {running ? '■ Tắt' : '▶ Bật chiều đi'}
-        </button>
-        {running && (
-          <button
-            className={paused ? 'btn-start' : 'btn-pause'}
-            onClick={() => void togglePause()}
-            disabled={busy || outgoing.state === 'connecting'}
-            title="Ngừng gửi giọng nói nhưng giữ nguyên transcript chiều đi"
-          >
-            {paused ? '▶ Tiếp tục' : '⏸ Tạm dừng'}
+      {/* đang xem tab khác mà micro vẫn mở → luôn có chỗ tắt ngay */}
+      {directMic && mode !== 'direct' && (
+        <div className="live-strip">
+          <span>🔴 Meeting đang nghe giọng thật của bạn</span>
+          <button className="small" onClick={() => void toggleDirect()} disabled={directBusy}>
+            Tắt
           </button>
-        )}
-        <div className="metrics">
-          <span>⏱ {formatDuration(outgoingMetrics.sessionSeconds)}</span>
-          <span>📤 {outgoingMetrics.secondsSent.toFixed(0)}s</span>
-          <span>≈ ${outgoingMetrics.estimatedCostUsd.toFixed(3)}</span>
-          {outgoingMetrics.reconnects > 0 && <span>🔁 {outgoingMetrics.reconnects}</span>}
         </div>
-      </div>
+      )}
+      {running && mode !== 'speak' && (
+        <div className="live-strip calm">
+          <span>
+            🎤 Dịch giọng nói đang bật ({STATE_LABELS[outgoing.state].toLowerCase()}) · ≈ $
+            {outgoingMetrics.estimatedCostUsd.toFixed(3)}
+          </span>
+          <button className="small" onClick={() => void toggle()} disabled={busy}>
+            ■ Tắt
+          </button>
+        </div>
       )}
 
-      {typing ? (
-        <TypedSpeechBox onOpenSettings={onOpenSettings} />
-      ) : isPtt ? (
-        <button
-          className={`ptt-btn ${talking ? 'talking' : ''}`}
-          disabled={!running || paused}
-          title="Hoặc nhấn Ctrl+Space (bật/tắt) khi đang ở cửa sổ meeting"
-          onPointerDown={() => press(true)}
-          onPointerUp={() => press(false)}
-          onPointerLeave={() => press(false)}
-        >
-          {paused
-            ? '⏸ Đang tạm dừng'
-            : talking
-              ? '🔴 Đang nói… (thả ra để gửi)'
-              : '🎤 Giữ để nói · Ctrl+Space'}
-        </button>
-      ) : (
-        <LevelMeter rmsDb={outgoingMetrics.rmsDb} thresholdDb={settings.outgoingVadThresholdDb} />
+      {mode === 'type' && <TypedSpeechBox onOpenSettings={onOpenSettings} />}
+
+      {mode === 'direct' && (
+        <>
+          <button
+            className={`ptt-btn ${directMic ? 'talking' : ''}`}
+            onClick={() => void toggleDirect()}
+            disabled={directBusy}
+          >
+            {directMic ? '🔴 Đang nói thẳng · bấm để tắt' : `🎙 Bật micro nói thẳng · ${DIRECT_HINT}`}
+          </button>
+          <p className="hint">
+            {directMic
+              ? paused
+                ? 'Meeting đang nghe giọng thật của bạn. Dịch giọng nói tạm dừng, sẽ chạy lại khi bạn tắt.'
+                : 'Meeting đang nghe giọng thật của bạn.'
+              : 'Giọng thật của bạn vào meeting, không dịch, không tốn tiền. Meet/Zoom cứ để micro = CABLE Output.'}
+          </p>
+        </>
+      )}
+
+      {mode === 'speak' && !running && (
+        <>
+          <button className="ptt-btn start" onClick={() => void toggle()} disabled={busy}>
+            ▶ Bật dịch giọng nói
+          </button>
+          <p className="hint">
+            {isPtt
+              ? 'Bật xong thì giữ nút (hoặc Ctrl+Space) trong lúc nói. Chỉ tốn tiền khi bạn nói.'
+              : 'Bật xong thì cứ nói, app tự nhận lúc bạn nói và dịch.'}
+          </p>
+        </>
+      )}
+
+      {mode === 'speak' && running && (
+        <>
+          {isPtt ? (
+            <button
+              className={`ptt-btn ${talking ? 'talking' : ''}`}
+              disabled={paused}
+              title="Hoặc nhấn Ctrl+Space (bật/tắt) khi đang ở cửa sổ meeting"
+              onPointerDown={() => press(true)}
+              onPointerUp={() => press(false)}
+              onPointerLeave={() => press(false)}
+            >
+              {paused
+                ? '⏸ Đang tạm dừng'
+                : talking
+                  ? '🔴 Đang nói… (thả ra để gửi)'
+                  : '🎤 Giữ để nói · Ctrl+Space'}
+            </button>
+          ) : (
+            <LevelMeter rmsDb={outgoingMetrics.rmsDb} thresholdDb={settings.outgoingVadThresholdDb} />
+          )}
+          <div className="row">
+            <button className="btn-stop small" onClick={() => void toggle()} disabled={busy}>
+              ■ Tắt
+            </button>
+            <button
+              className={`small ${paused ? 'btn-start' : 'btn-pause'}`}
+              onClick={() => void togglePause()}
+              disabled={busy || outgoing.state === 'connecting'}
+              title="Ngừng gửi giọng nói nhưng giữ nguyên transcript chiều đi"
+            >
+              {paused ? '▶ Tiếp tục' : '⏸ Tạm dừng'}
+            </button>
+            <div className="metrics">
+              <span>⏱ {formatDuration(outgoingMetrics.sessionSeconds)}</span>
+              <span>📤 {outgoingMetrics.secondsSent.toFixed(0)}s</span>
+              <span>≈ ${outgoingMetrics.estimatedCostUsd.toFixed(3)}</span>
+              {outgoingMetrics.reconnects > 0 && <span>🔁 {outgoingMetrics.reconnects}</span>}
+            </div>
+          </div>
+        </>
       )}
 
       <SegmentList
         segments={outgoingSegments}
-        placeholder={typing ? 'Câu đã phát sẽ hiện ở đây…' : 'Chưa nói gì…'}
+        placeholder={
+          mode === 'type'
+            ? 'Câu đã phát sẽ hiện ở đây…'
+            : mode === 'direct'
+              ? 'Lời nói thẳng không được ghi lại. Câu đã dịch hoặc đã phát hiện ở đây…'
+              : 'Chưa nói gì…'
+        }
         className="outgoing"
         onReplay={(seg) => void replay(seg)}
         replayDisabled={typedSpeech !== 'idle'}

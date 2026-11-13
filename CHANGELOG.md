@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.6] — 2026-11-13
+
+### Thêm mới
+- **Ghi log ra file**: trước đây bản cài không lưu lỗi ở đâu cả, gặp sự cố là không truy được nguyên nhân.
+  - App ghi lỗi, cảnh báo và các mốc đổi trạng thái (bắt đầu, kết nối lại, tạm dừng, dừng, bật/tắt Nói thẳng) vào `app.log`. Lỗi trong cửa sổ giao diện, overlay và phần xử lý âm thanh cũng được ghi.
+  - Mở bằng nút **📂 Mở thư mục log** ở **Cài đặt → Khác**.
+  - File nằm trên máy bạn, **không gửi đi đâu**. Tối đa khoảng 2 MB: đầy 1 MB thì file cũ chuyển thành `app.1.log` và ghi tiếp file mới.
+  - Log **không chứa** lời trong cuộc họp. API key nếu lọt vào thông báo lỗi của Google thì bị che trước khi ghi.
+- **Nút "📋 Copy thông tin chẩn đoán"** ở **Cài đặt → Khác**: chép một bản tóm tắt để dán vào issue khi báo lỗi.
+  - Gồm: phiên bản app, Windows, model đang dùng, thiết bị đã chọn và danh sách thiết bị âm thanh, trạng thái hai chiều, thiết bị "Phát vào" có phải mic ảo không, chi phí, và 80 dòng log cuối.
+  - **Không gồm**: API key (chỉ ghi "đã lưu" hay "chưa có"), nội dung cuộc họp, Ngữ cảnh cuộc họp, từ khoá. Tên tài khoản Windows trong đường dẫn được thay bằng `~`.
+  - Bạn nên đọc lướt trước khi dán nơi công khai: tên thiết bị âm thanh của máy bạn có trong đó.
+
+### Thay đổi
+- **Thẻ Chiều đi gọn hơn**: thay vì nhiều hàng nút cùng lúc, giờ bạn chọn một trong ba cách nói và thẻ chỉ hiện các nút của cách đó.
+  - Ba cách: **🎤 Nói có dịch**, **⌨ Gõ để nói**, **🎙 Nói thẳng**. App nhớ cách bạn chọn.
+  - Dòng **Vào meeting: …** ở góc thẻ cho biết meeting đang nghe gì từ bạn: im lặng, giọng dịch, giọng đọc hay giọng thật.
+  - Nút **Bật chiều đi** đổi tên thành **▶ Bật dịch giọng nói**. Nút **Giữ để nói** chỉ hiện sau khi đã bật, không còn nằm đó ở trạng thái mờ.
+  - Đang xem cách khác mà micro nói thẳng hoặc dịch giọng nói vẫn chạy thì có một dải báo kèm nút **Tắt**, và chấm đỏ trên tab tương ứng.
+  - Danh sách câu đã nói cao hơn một chút.
+  - Nói thẳng chuyển vào tab **🎙 Nói thẳng**: chọn tab rồi bấm **Bật micro nói thẳng**. Phím tắt **Ctrl+Alt+M** và mục ở menu khay giữ nguyên.
+
 ## [0.5.5] — 2026-11-12
 
 ### Thêm mới

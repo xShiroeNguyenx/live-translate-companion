@@ -31,6 +31,7 @@ import { HistoryStore } from './history/history-store'
 import { MeetingTitleTracker } from './history/meeting-title-tracker'
 import { registerIpc } from './ipc'
 import { KeywordNotifier } from './keyword-notifier'
+import { captureConsole, FileLogger } from './logging/file-logger'
 import { isVirtualCable } from '../shared/virtual-cable'
 import { DirectMicController } from './outgoing/direct-mic'
 import { TypedSpeechService } from './outgoing/typed-speech'
@@ -70,6 +71,15 @@ if (gotLock) {
 
   app.setAppUserModelId('com.nguyenkhanh.livetranslatecompanion')
 
+  // ── Log ra file (userData/logs/app.log): mọi console.* của main + lỗi không ai bắt ──
+  const logger = new FileLogger(join(app.getPath('userData'), 'logs'))
+  captureConsole(logger)
+  process.on('uncaughtException', (err) => console.error('uncaughtException:', err))
+  process.on('unhandledRejection', (reason) => console.error('unhandledRejection:', reason))
+  logger.info(
+    `── Khởi động ${app.getVersion()} · Electron ${process.versions.electron} · ${process.platform} ${process.arch} ──`
+  )
+
   app.whenReady().then(() => {
     installLoopbackHandler()
 
@@ -78,6 +88,23 @@ if (gotLock) {
     const overlay = createOverlayWindow()
     const engine = createEngineWindow()
     controlWindow = control
+
+    // lỗi/cảnh báo trong 3 cửa sổ (engine âm thanh, giao diện, overlay) cũng xuống file log
+    for (const [name, win] of [
+      ['control', control],
+      ['overlay', overlay],
+      ['engine', engine]
+    ] as const) {
+      win.webContents.on('console-message', (e) => {
+        if (e.level !== 'warning' && e.level !== 'error') return
+        logger.write(e.level === 'error' ? 'error' : 'warn', [
+          `[${name}] ${e.message} (${e.sourceId.split('/').pop() ?? ''}:${e.lineNumber})`
+        ])
+      })
+      win.webContents.on('render-process-gone', (_e, details) => {
+        logger.error(`[${name}] cửa sổ chết: ${details.reason} (mã ${details.exitCode})`)
+      })
+    }
 
     const broadcast = (channel: string, payload: unknown): void => {
       for (const win of [control, overlay]) {
@@ -437,6 +464,7 @@ if (gotLock) {
       resumeTranslation: () => resumeOutgoing()
     })
     directMic.on('state', (on: boolean) => {
+      logger.info(`Nói thẳng: ${on ? 'bật' : 'tắt'}`)
       sendToControl(IPC.evOutgoingDirect, on)
       tray.refresh()
     })
@@ -474,7 +502,17 @@ if (gotLock) {
       }
     )
 
+    // đổi trạng thái phiên: đủ để dựng lại trình tự khi có lỗi (không ghi nội dung cuộc họp)
+    const logState = (name: string, info: { state: string; error?: string }): void => {
+      if (info.error) logger.error(`${name}: ${info.state} — ${info.error}`)
+      else logger.info(`${name}: ${info.state}`)
+    }
+    let lastIncomingState = ''
+    let lastOutgoingState = ''
+
     sessions.on('state', (info) => {
+      if (info.state !== lastIncomingState || info.error) logState('Chiều về', info)
+      lastIncomingState = info.state
       broadcast(IPC.evSessionState, info)
       if (info.state === 'idle' || info.state === 'error') {
         incomingSaver.flush()
@@ -601,6 +639,12 @@ if (gotLock) {
     }
 
     outgoing.on('state', (info) => {
+      // PTT lật gated↔streaming liên tục → chỉ ghi các mốc khác
+      const quiet = info.state === 'gated' || info.state === 'streaming'
+      if ((info.state !== lastOutgoingState && !(quiet && lastOutgoingState !== '' && ['gated', 'streaming'].includes(lastOutgoingState))) || info.error) {
+        logState('Chiều đi', info)
+      }
+      lastOutgoingState = info.state
       sendToControl(IPC.evOutgoingState, info)
       if (info.state === 'idle' || info.state === 'error' || info.state === 'paused') {
         outgoingSaver.flush()
@@ -665,6 +709,7 @@ if (gotLock) {
       typedSpeech,
       removeOutgoingSegment,
       directMic,
+      logger,
       meetingTitle,
       setMeetingTitle,
       renameHistory,

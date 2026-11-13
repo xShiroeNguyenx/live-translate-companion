@@ -189,7 +189,8 @@ export class AssistantService {
       })
       const parsed = parseReplyResult(raw)
       if (!parsed) {
-        console.error('Trợ lý: gợi ý trả lời không đọc được:', raw.slice(0, 500))
+        // chỉ ghi độ dài: nội dung là lời trong cuộc họp, không được nằm trong file log
+        console.error(`Trợ lý: gợi ý trả lời không đọc được (${raw.length} ký tự)`)
         return { ok: false, error: 'Model trả về gợi ý không đọc được, thử lại.' }
       }
       return { ok: true, ...parsed, replyLanguage }

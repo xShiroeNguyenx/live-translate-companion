@@ -360,7 +360,7 @@ textarea.typed-translation {
 }
 
 .subtitle-list.outgoing {
-  height: 90px;
+  height: 120px;
 }
 
 .link-btn {
@@ -870,17 +870,65 @@ button.entry-head:hover:not(:disabled) {
   font-style: italic;
 }
 
-/* ── Chiều đi "Nói thẳng" ── */
-.direct-row .hint {
-  margin: 0;
-}
-
-.direct-btn {
-  flex: 0 0 auto;
+/* ── Chiều đi: chọn cách nói + trạng thái "vào meeting" ── */
+.tabs.mode-switch button {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
-.direct-btn.on {
-  background: #7f1d1d;
+.mode-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  vertical-align: middle;
+}
+
+.hear-chip {
+  color: #9ca3af;
+  font-size: 11px;
+  border: 1px solid #2a313b;
+  border-radius: 10px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.hear-chip.live {
+  color: #fecaca;
   border-color: #ef4444;
+  background: #7f1d1d;
+}
+
+.live-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 12px;
+}
+
+.live-strip.calm {
+  background: #1e3a5f;
+  color: #bfdbfe;
+}
+
+.ptt-btn.start {
+  background: #166534;
+  border-color: #15803d;
+}
+
+.ptt-btn.start:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.card > p.hint {
+  margin: 0;
 }
