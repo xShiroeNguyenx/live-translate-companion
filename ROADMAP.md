@@ -1,6 +1,6 @@
 # Lộ trình
 
-Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.6**) tới **1.0**.
+Tài liệu này cho biết Live Translate Companion sẽ đi tiếp theo hướng nào, từ bản hiện tại (**0.5.7**) tới **1.0**.
 Thứ tự có thể đổi theo phản hồi của người dùng. Bạn có ý tưởng hoặc gặp lỗi thì mở
 [issue trên GitHub](https://github.com/xShiroeNguyenx/live-translate-companion/issues).
 

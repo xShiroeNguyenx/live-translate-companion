@@ -12,15 +12,9 @@ import type { ExportFormat, IncomingMode } from '../../shared/types'
 import { AssistantPanel } from './AssistantPanel'
 import { HistoryPanel } from './HistoryPanel'
 import { OutgoingPanel } from './OutgoingPanel'
-import { SettingsPanel } from './SettingsPanel'
+import { SettingsPanel, type SettingsSection } from './SettingsPanel'
 import { useControlStore } from './store'
-import {
-  formatDuration,
-  isDefaultDevice,
-  STATE_COLORS,
-  STATE_LABELS,
-  useDraft
-} from './ui-helpers'
+import { formatDuration, isDefaultDevice, STATE_COLORS, STATE_LABELS, useDraft } from './ui-helpers'
 import { LevelMeter, SegmentList, Warn } from './widgets'
 
 type Tab = 'main' | 'history' | 'settings'
@@ -101,7 +95,9 @@ function MeetingTitleField(): React.JSX.Element {
         />
       </div>
       {!autoSave && (
-        <p className="hint">Bật “Tự lưu transcript” (tab Cài đặt) để tên được lưu vào Lịch sử.</p>
+        <p className="hint">
+          Bật “Tự lưu mỗi phiên” (Cài đặt → Cuộc họp) để tên được lưu vào Lịch sử.
+        </p>
       )}
     </>
   )
@@ -122,6 +118,7 @@ export function App(): React.JSX.Element {
     init
   } = useControlStore()
   const [tab, setTab] = useState<Tab>('main')
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('api')
   const [historyId, setHistoryId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -153,7 +150,11 @@ export function App(): React.JSX.Element {
   const playing = settings.playbackEnabled && !textOnly
   const feedbackRisk = playing && sinkCaptured
   const sinkError = playing && sinkState && !sinkState.ok ? sinkState.error : null
-  const openSettings = (): void => setTab('settings')
+  // nút “Sửa →” mở thẳng nhóm cài đặt có thứ cần sửa; không truyền gì thì giữ nhóm đang xem
+  const openSettings = (section?: SettingsSection): void => {
+    if (section) setSettingsSection(section)
+    setTab('settings')
+  }
   const openHistory = (id: string | null): void => {
     setHistoryId(id)
     setTab('history')
@@ -214,7 +215,7 @@ export function App(): React.JSX.Element {
           <button className={tab === 'history' ? 'active' : ''} onClick={() => openHistory(null)}>
             Lịch sử
           </button>
-          <button className={tab === 'settings' ? 'active' : ''} onClick={openSettings}>
+          <button className={tab === 'settings' ? 'active' : ''} onClick={() => openSettings()}>
             ⚙ Cài đặt
           </button>
         </nav>
@@ -278,14 +279,16 @@ export function App(): React.JSX.Element {
       {update.state === 'error' && !update.transient && (
         <Warn>Lỗi kiểm tra cập nhật: {update.error}</Warn>
       )}
-      {!hasKey && <Warn onFix={openSettings}>Chưa có Gemini API key.</Warn>}
+      {!hasKey && <Warn onFix={() => openSettings('api')}>Chưa có Gemini API key.</Warn>}
       {sinkError && (
-        <Warn onFix={openSettings}>
+        <Warn onFix={() => openSettings('audio')}>
           Không route được giọng dịch tới thiết bị đã chọn — đang phát ra thiết bị mặc định.
+          {sinkCaptured && ' Thiết bị đó đang bị thu nên có thể sót lời.'}
         </Warn>
       )}
-      {feedbackRisk && (
-        <Warn onFix={openSettings}>
+      {/* route hỏng đã nói luôn chuyện bị thu ở cảnh báo trên → không hiện 2 cảnh báo cho 1 nguyên nhân */}
+      {feedbackRisk && !sinkError && (
+        <Warn onFix={() => openSettings('audio')}>
           Giọng dịch phát vào đúng thiết bị đang bị thu — có thể sót lời. Nên chọn thiết bị khác.
         </Warn>
       )}
@@ -293,7 +296,7 @@ export function App(): React.JSX.Element {
       {tab === 'main' && (
         <>
           <UsageBar />
-          <section className="card">
+          <section className="card fill">
             <div className="card-head">
               <h2>Chiều về · meeting → {languageShort(settings.targetLanguage)}</h2>
               <span className="state-label">{STATE_LABELS[session.state]}</span>
@@ -301,7 +304,7 @@ export function App(): React.JSX.Element {
               {running && session.textOnly && <span className="badge">📝 Chỉ chữ</span>}
             </div>
             {session.contextDisabled && (
-              <Warn onFix={openSettings}>
+              <Warn onFix={() => openSettings('meeting')}>
                 Model không nhận “Ngữ cảnh cuộc họp” — phiên này dịch không có ngữ cảnh.
               </Warn>
             )}
@@ -355,8 +358,7 @@ export function App(): React.JSX.Element {
               </button>
               {running && (
                 <button
-                  className="small"
-                  style={{ marginLeft: 'auto' }}
+                  className="small push-right"
                   disabled={summarizing || !hasKey}
                   onClick={() => void summarizeNow()}
                   title="Tóm tắt phần đã dịch mà không dừng phiên — bản tóm tắt cuối vẫn chạy khi bấm Dừng"
@@ -369,13 +371,21 @@ export function App(): React.JSX.Element {
 
           <AssistantPanel />
 
-          <OutgoingPanel onOpenSettings={openSettings} />
+          <OutgoingPanel onOpenSettings={() => openSettings('audio')} />
         </>
       )}
 
       {tab === 'history' && <HistoryPanel selectedId={historyId} onSelect={setHistoryId} />}
 
-      {tab === 'settings' && <SettingsPanel notify={setNotice} busy={busy} setBusy={setBusy} />}
+      {tab === 'settings' && (
+        <SettingsPanel
+          notify={setNotice}
+          busy={busy}
+          setBusy={setBusy}
+          section={settingsSection}
+          onSection={setSettingsSection}
+        />
+      )}
     </div>
   )
 }

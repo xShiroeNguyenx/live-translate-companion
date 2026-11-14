@@ -154,7 +154,7 @@ export function HistoryPanel({
                 Mở tóm tắt
               </button>
             )}
-            <button className="small danger" style={{ marginLeft: 'auto' }} onClick={() => void remove()}>
+            <button className="small danger push-right" onClick={() => void remove()}>
               Xoá
             </button>
           </div>

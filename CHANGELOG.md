@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.7] — 2026-11-14
+
+### Thay đổi
+- **Cài đặt chia thành 4 nhóm**: trước đây là 8 thẻ nối nhau, phải cuộn dài mới tới chỗ cần. Giờ có một hàng nút ở đầu trang và mỗi lần chỉ hiện một nhóm, vừa trong một màn hình.
+  - **🔑 API & chi phí**: API key, giới hạn chi phí tháng. Phiên bản API và model dịch gập vào mục **Nâng cao** (tự mở sẵn nếu bạn đã đổi khỏi mặc định).
+  - **🎧 Âm thanh**: thiết bị và ngôn ngữ của chiều về, chiều đi.
+  - **📝 Cuộc họp**: ngữ cảnh & từ khoá, tự lưu & tóm tắt.
+  - **🖥 Ứng dụng**: overlay, phím tắt, khay hệ thống, báo lỗi, cập nhật.
+  - Tên các thẻ bên trong giữ nguyên, nên hướng dẫn kiểu "Cài đặt → Chiều đi" vẫn đúng.
+- **Nút "Sửa →" trên cảnh báo mở thẳng nhóm cần sửa** (thiếu API key thì mở API & chi phí, lỗi thiết bị thì mở Âm thanh).
+- **Tab Dịch vừa trong cửa sổ**: thẻ phụ đề chiều về co giãn theo chiều cao cửa sổ thay vì cao cố định, nên thẻ Chiều đi và nút nói không còn bị đẩy xuống dưới mép. Kéo cửa sổ cao lên thì phụ đề hiện được nhiều câu hơn.
+- **Bảng phím tắt toàn cục** ở Cài đặt → Ứng dụng, có thêm **Ctrl+Alt+M** (Nói thẳng) trước đây bị thiếu.
+- Chữ chú thích nhỏ sáng hơn cho dễ đọc. Ô tick và thanh trượt dùng màu xanh của app thay cho màu đỏ mặc định. Đi bằng phím Tab thấy rõ nút đang được chọn.
+
+### Sửa lỗi
+- Khi không phát được giọng dịch ra thiết bị đã chọn, app hiện hai cảnh báo cho cùng một nguyên nhân. Giờ gộp thành một.
+- Ô **Giới hạn/tháng** bị giãn hết chiều ngang, đẩy chữ "0 = không giới hạn" sát mép.
+
 ## [0.5.6] — 2026-11-13
 
 ### Thêm mới

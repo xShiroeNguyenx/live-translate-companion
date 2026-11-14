@@ -60,7 +60,7 @@ Mở app → tab **⚙ Cài đặt** → dán **Gemini API key** → **Lưu** �
 Cửa sổ chia 3 tab:
 - **Dịch** — chỉ những gì cần trong lúc họp: chi phí hôm nay/tháng, bật/tắt 2 chiều, đồng hồ đo, phụ đề, nút giữ-để-nói. Cảnh báo hiển thị ngắn gọn kèm nút **"Sửa →"** nhảy sang Cài đặt.
 - **Lịch sử** — các phiên đã lưu, tìm kiếm, xem tóm tắt.
-- **⚙ Cài đặt** — API key, ngôn ngữ, thiết bị âm thanh, ngưỡng VAD, chiều đi, ngữ cảnh & từ khoá, tự lưu & tóm tắt, giới hạn chi phí, overlay, khay hệ thống, kiểm tra cập nhật.
+- **⚙ Cài đặt** — chia 4 nhóm, mỗi lần hiện một nhóm: **🔑 API & chi phí** (API key, model, giới hạn chi phí), **🎧 Âm thanh** (thiết bị, ngôn ngữ, ngưỡng VAD của chiều về và chiều đi), **📝 Cuộc họp** (ngữ cảnh & từ khoá, tự lưu & tóm tắt), **🖥 Ứng dụng** (overlay, phím tắt, khay hệ thống, báo lỗi, kiểm tra cập nhật).
 
 Đóng cửa sổ thì app **thu nhỏ xuống khay hệ thống** và vẫn dịch tiếp. Chuột phải icon ở khay để bật/tắt 2 chiều, ẩn/hiện overlay hoặc **Thoát**. Muốn đóng là thoát hẳn thì tắt tuỳ chọn ở **Cài đặt → Khác**.
 
