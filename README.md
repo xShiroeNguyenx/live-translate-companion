@@ -112,11 +112,13 @@ Quay lại tab **Dịch**. Thẻ Chiều đi có 3 cách nói, chọn một: **�
 - Lúc không bật Nói thẳng và không giữ nút nói, meeting **không nghe thấy bạn**.
 
 **Gõ để nói** (không tiện nói, hoặc muốn soạn trước câu trả lời): trên thẻ Chiều đi chọn **⌨ Gõ để nói**.
-1. Gõ câu tiếng Việt → **Dịch** (hoặc Enter). Bản dịch hiện ở ô dưới, sửa tay được. Chưa có gì phát ra.
-2. Tới lượt mình nói thì bấm **▶ Phát** (hoặc Ctrl+Enter). Giọng đi vào **📤 Phát vào** (`CABLE Input`). **■ Dừng** để cắt giữa chừng.
+1. Gõ câu tiếng Việt → **Lưu** (hoặc Enter). Câu vào danh sách bên dưới, app tự dịch và tạo sẵn giọng. Ô gõ trống ngay để soạn câu tiếp. Chưa có gì phát ra.
+2. Soạn trước bao nhiêu câu cũng được (tối đa 30). Bản dịch của từng câu sửa tay được.
+3. Tới lượt mình nói thì bấm **▶** ở câu muốn phát. Giọng đi vào **📤 Phát vào** (`CABLE Input`). **■** để cắt giữa chừng. Ctrl+Enter ở ô gõ phát **câu kế tiếp** (câu đầu tiên chưa phát, viền xanh).
 
+- Câu đã phát vẫn nằm trong danh sách (mờ đi, ghi số lần đã phát), bấm ▶ lần nữa để nói lại. **✕** xoá một câu, **Xoá hết** xoá cả danh sách. Danh sách giữ tới khi tắt app.
 - Không cần bật dịch giọng nói; chỉ cần đã chọn thiết bị **📤 Phát vào**.
-- App chuẩn bị giọng sẵn ngay sau khi dịch nên bấm Phát là ra tiếng liền. Sửa bản dịch thì lần Phát đó chờ thêm vài giây.
+- App chuẩn bị giọng sẵn ngay sau khi dịch nên bấm ▶ là ra tiếng liền. Sửa bản dịch thì app tạo lại giọng khi bạn bấm ra khỏi ô.
 - Chọn giọng ở **Cài đặt → Chiều đi → 🗣 Giọng đọc**. Chi phí khoảng $0.03 cho mỗi phút giọng (`gemini-3.8-flash-tts`), tính vào chi phí tháng.
 - Câu đã phát được ghi vào transcript chiều đi như lời nói qua micro. Mỗi câu có nút **🔁 Phát lại**: 30 câu gần nhất phát lại không tốn thêm tiền (tới khi tắt app hoặc đổi giọng).
 

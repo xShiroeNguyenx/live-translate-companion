@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.8] — 2026-11-19
+
+### Thay đổi
+- **Gõ để nói thành danh sách câu soạn sẵn**: trước đây chỉ có một câu, phải phát xong mới gõ câu khác. Giờ gõ + Enter là câu vào danh sách (tự dịch và tạo sẵn giọng), ô gõ trống ngay để soạn tiếp.
+  - Mỗi câu có nút **▶** riêng: tới lượt nói thì bấm đúng câu muốn phát. Bản dịch từng câu sửa tay được.
+  - **Ctrl+Enter** ở ô gõ phát câu kế tiếp (câu đầu tiên chưa phát).
+  - Câu đã phát vẫn nằm trong danh sách, ghi số lần đã phát, bấm ▶ lần nữa để nói lại (giọng đã có sẵn nên thường không tốn thêm). Tối đa 30 câu, giữ tới khi tắt app.
+  - Dịch lỗi thì câu đó có nút **Dịch lại**, không mất câu đã gõ.
+
 ## [0.5.7] — 2026-11-14
 
 ### Thay đổi

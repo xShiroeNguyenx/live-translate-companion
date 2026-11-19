@@ -17,6 +17,7 @@ import type {
   UsageSummary,
   WindowsAudioDevice
 } from '../../shared/types'
+import type { TypedItem } from '../../shared/typed-queue'
 
 const MAX_SEGMENTS = 500
 const MAX_ASSISTANT_ITEMS = 30
@@ -59,15 +60,6 @@ function previousTurns(items: AssistantItem[]): QaTurn[] {
     .reverse()
 }
 
-export interface TypedDraft {
-  // câu người dùng gõ
-  source: string
-  // bản dịch (sửa tay được) — đây là câu sẽ được đọc
-  translation: string
-  // câu gốc ứng với bản dịch đang hiện; khác `source` = bản dịch đã cũ
-  translatedFrom: string
-}
-
 const EMPTY_METRICS: Metrics = {
   rmsDb: -100,
   secondsSent: 0,
@@ -107,8 +99,11 @@ interface ControlState {
   typedSpeech: TypedSpeechState
   // "Nói thẳng": giọng thật đang đi vào mic ảo (main là nguồn sự thật)
   directMic: boolean
-  typedDraft: TypedDraft
-  setTypedDraft(patch: Partial<TypedDraft>): void
+  // ô đang gõ + danh sách câu đã soạn sẵn (dịch + tạo giọng sẵn), giữ tới khi tắt app
+  typedInput: string
+  setTypedInput(text: string): void
+  typedItems: TypedItem[]
+  updateTypedItems(fn: (items: TypedItem[]) => TypedItem[]): void
   appVersion: string
   update: UpdateStatus
   usage: UsageSummary
@@ -176,8 +171,10 @@ export const useControlStore = create<ControlState>((set, get) => ({
   outgoingSinkState: null,
   typedSpeech: 'idle',
   directMic: false,
-  typedDraft: { source: '', translation: '', translatedFrom: '' },
-  setTypedDraft: (patch) => set((s) => ({ typedDraft: { ...s.typedDraft, ...patch } })),
+  typedInput: '',
+  setTypedInput: (typedInput) => set({ typedInput }),
+  typedItems: [],
+  updateTypedItems: (fn) => set((s) => ({ typedItems: fn(s.typedItems) })),
   appVersion: '',
   update: { state: 'idle' },
   usage: { todayUsd: 0, monthUsd: 0, budgetUsd: 0 },

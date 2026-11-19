@@ -418,8 +418,83 @@ button:disabled {
   flex: 0 0 72px;
 }
 
-textarea.typed-translation {
+/* danh sách câu soạn sẵn của "Gõ": mỗi câu = câu gốc + bản dịch (sửa được) + nút phát */
+.typed-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--inset);
+  border-radius: var(--radius);
+  padding: var(--gap-sm);
+}
+
+.typed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap);
+  padding: var(--gap-sm) var(--gap);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.typed-item.next {
+  border-left-color: var(--accent);
+}
+
+.typed-item.playing {
+  border-left-color: var(--ok);
+}
+
+.typed-item.played:not(.playing) {
+  opacity: 0.7;
+}
+
+.typed-item-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.typed-item-src {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+textarea.typed-item-tr {
+  resize: none;
   color: var(--ok-text);
+  font-size: var(--fs-md);
+  padding: 2px 4px;
+}
+
+.typed-item-err {
+  font-size: var(--fs-sm);
+  color: var(--danger-text);
+}
+
+.typed-item-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.typed-item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-xs);
+}
+
+.typed-item-actions button.small {
+  min-width: 36px;
 }
 
 .typed-foot {
@@ -427,10 +502,6 @@ textarea.typed-translation {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.hint.stale {
-  color: var(--warn-text);
 }
 
 .subtitle-list.outgoing {
